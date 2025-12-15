@@ -1,41 +1,81 @@
+import { useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, FileSpreadsheet } from "lucide-react";
+import { Upload, FileSpreadsheet, Loader2 } from "lucide-react";
+import { useExcelUpload } from "@/hooks/useExcelUpload";
 
 const AdminData = () => {
+  const { isUploading, uploadInvoices, uploadCustomers, uploadStock, uploadOpenOrders } = useExcelUpload();
+  const [uploadCounts, setUploadCounts] = useState<Record<string, number>>({});
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    type: string,
+    isCurrentYear: boolean = true
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      let count = 0;
+      switch (type) {
+        case "current":
+          count = await uploadInvoices(file, true);
+          break;
+        case "historical":
+          count = await uploadInvoices(file, false);
+          break;
+        case "customers":
+          count = await uploadCustomers(file);
+          break;
+        case "stock":
+          count = await uploadStock(file);
+          break;
+        case "orders":
+          count = await uploadOpenOrders(file);
+          break;
+      }
+      setUploadCounts((prev) => ({ ...prev, [type]: count }));
+      // Reset input
+      event.target.value = "";
+    } catch (error) {
+      console.error("Upload error:", error);
+    }
+  };
+
   const dataCards = [
     {
       title: "Current Year Invoices",
       desc: "Invoice data for current fiscal year",
       fileName: "invoice_current.xlsx",
+      type: "current",
     },
     {
-      title: "Historical Invoices (Q1)",
-      desc: "Quarter 1 historical invoice data",
-      fileName: "q1.xlsx",
-    },
-    {
-      title: "Historical Invoices (Q2-Q7)",
-      desc: "Additional historical quarters",
-      fileName: "q2.xlsx - q7.xlsx",
+      title: "Historical Invoices (Q1-Q7)",
+      desc: "Past quarter invoice data",
+      fileName: "q1.xlsx, q2.xlsx, etc.",
+      type: "historical",
     },
     {
       title: "Open Sales Orders",
       desc: "Current open orders data",
       fileName: "open_orders.xlsx",
+      type: "orders",
     },
     {
       title: "Stock Data",
       desc: "Current inventory and stock levels",
       fileName: "stock.xlsx",
+      type: "stock",
     },
     {
       title: "Customer Master",
       desc: "Customer details and contact info",
       fileName: "customers.xlsx",
+      type: "customers",
     },
   ];
 
@@ -46,7 +86,7 @@ const AdminData = () => {
           <h1 className="text-2xl sm:text-3xl font-bold">Admin Data Management</h1>
           <p className="text-muted-foreground mt-1">Upload and manage Excel data sources</p>
         </div>
-        
+
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {dataCards.map((card, index) => (
             <Card key={index} className="border-border">
@@ -67,14 +107,31 @@ const AdminData = () => {
                     type="file"
                     accept=".xlsx,.xls"
                     className="cursor-pointer"
+                    onChange={(e) => handleFileUpload(e, card.type)}
+                    disabled={isUploading}
                   />
                 </div>
-                <Button className="w-full" size="sm">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload & Import
+                <Button className="w-full" size="sm" disabled={isUploading}>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload & Import
+                    </>
+                  )}
                 </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  No data imported yet
+                <p className="text-xs text-center">
+                  {uploadCounts[card.type] ? (
+                    <span className="text-primary font-medium">
+                      ✓ {uploadCounts[card.type]} rows imported
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">No data imported yet</span>
+                  )}
                 </p>
               </CardContent>
             </Card>
