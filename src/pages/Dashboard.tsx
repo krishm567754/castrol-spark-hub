@@ -1,12 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart3, FileText, Package, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const currentDate = new Date();
   const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // 0 = current, -1 = prev, -2 = 2 months ago
+  const [isLoading, setIsLoading] = useState(false);
+  const [totalVolume, setTotalVolume] = useState(0);
+  const [totalInvoices, setTotalInvoices] = useState(0);
+  const [openOrders3d, setOpenOrders3d] = useState(0);
+  const [stockSkus, setStockSkus] = useState(0);
 
   const getMonthLabel = (offset: number) => {
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
@@ -15,17 +21,83 @@ const Dashboard = () => {
     return `${monthName} ${year}${offset === 0 ? " (Current)" : ""}`;
   };
 
-  const months = [0, -1, -2].map((offset) => ({
-    offset,
-    label: getMonthLabel(offset),
-  }));
+  const getMonthDateRange = (offset: number) => {
+    const start = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
+    const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset + 1, 1);
+
+    const toStr = (d: Date) => d.toISOString().split("T")[0];
+
+    return {
+      start: toStr(start),
+      end: toStr(end),
+    };
+  };
+
+  useEffect(() => {
+    const loadKpis = async () => {
+      setIsLoading(true);
+      try {
+        const { start, end } = getMonthDateRange(selectedMonthOffset);
+
+        // Invoices for selected month (current + historical)
+        const { data: invoiceData, error: invoicesError } = await supabase
+          .from("invoices")
+          .select("product_volume, total_value, invoice_date")
+          .gte("invoice_date", start)
+          .lt("invoice_date", end);
+
+        if (invoicesError) throw invoicesError;
+
+        const volume = (invoiceData || []).reduce((sum, row: any) => {
+          const v = Number(row.product_volume) || 0;
+          return sum + v;
+        }, 0);
+
+        setTotalVolume(volume);
+        setTotalInvoices(invoiceData?.length || 0);
+
+        // Open orders in last 3 days
+        const today = new Date();
+        const threeDaysAgo = new Date(today);
+        threeDaysAgo.setDate(today.getDate() - 3);
+
+        const { data: ordersData, error: ordersError } = await supabase
+          .from("open_orders")
+          .select("id, order_date")
+          .gte("order_date", threeDaysAgo.toISOString().split("T")[0]);
+
+        if (ordersError) throw ordersError;
+        setOpenOrders3d(ordersData?.length || 0);
+
+        // Stock SKUs (number of products)
+        const { data: stockData, error: stockError } = await supabase
+          .from("stock")
+          .select("product_code");
+
+        if (stockError) throw stockError;
+
+        const uniqueSkus = new Set((stockData || []).map((row: any) => row.product_code)).size;
+        setStockSkus(uniqueSkus);
+      } catch (error) {
+        console.error("Error loading dashboard KPIs", error);
+        setTotalVolume(0);
+        setTotalInvoices(0);
+        setOpenOrders3d(0);
+        setStockSkus(0);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadKpis();
+  }, [selectedMonthOffset]);
 
   return (
     <AppLayout>
       <div className="p-4 sm:p-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
-          
+
           {/* Month Selector */}
           <div className="flex items-center gap-2 bg-card border border-border rounded-lg p-1">
             <Button
@@ -33,11 +105,11 @@ const Dashboard = () => {
               size="icon"
               className="h-8 w-8"
               onClick={() => setSelectedMonthOffset(Math.max(-2, selectedMonthOffset - 1))}
-              disabled={selectedMonthOffset === -2}
+              disabled={selectedMonthOffset === -2 || isLoading}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium px-2 min-w-[120px] text-center">
+            <span className="text-sm font-medium px-2 min-w-[140px] text-center">
               {getMonthLabel(selectedMonthOffset)}
             </span>
             <Button
@@ -45,7 +117,7 @@ const Dashboard = () => {
               size="icon"
               className="h-8 w-8"
               onClick={() => setSelectedMonthOffset(Math.min(0, selectedMonthOffset + 1))}
-              disabled={selectedMonthOffset === 0}
+              disabled={selectedMonthOffset === 0 || isLoading}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -60,8 +132,8 @@ const Dashboard = () => {
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">No data loaded yet</p>
+              <div className="text-2xl font-bold">{isLoading ? "-" : totalVolume.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Selected month</p>
             </CardContent>
           </Card>
 
@@ -71,8 +143,8 @@ const Dashboard = () => {
               <FileText className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">No data loaded yet</p>
+              <div className="text-2xl font-bold">{isLoading ? "-" : totalInvoices.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Invoices in selected month</p>
             </CardContent>
           </Card>
 
@@ -82,7 +154,7 @@ const Dashboard = () => {
               <BarChart3 className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{isLoading ? "-" : openOrders3d.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Last 3 days</p>
             </CardContent>
           </Card>
@@ -93,7 +165,7 @@ const Dashboard = () => {
               <Package className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{isLoading ? "-" : stockSkus.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Items in stock</p>
             </CardContent>
           </Card>
@@ -118,7 +190,7 @@ const Dashboard = () => {
               <Button variant="outline">Top 10 Customers</Button>
             </div>
             <div className="mt-6 p-8 border border-dashed border-border rounded-lg text-center text-muted-foreground">
-              Select a report to view data. Upload Excel files in Admin Data to populate reports.
+              Upload Excel files in Admin Data to populate reports, then select a report to view details.
             </div>
           </CardContent>
         </Card>
