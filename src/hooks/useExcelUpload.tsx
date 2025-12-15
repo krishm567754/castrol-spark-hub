@@ -175,24 +175,53 @@ export const useExcelUpload = () => {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const stock = jsonData.map((row: any) => ({
-        product_code: String(row["Product Code"] || ""),
-        product_name: String(row["Product Name"] || ""),
-        quantity: safeParseFloat(row["Qty(EA/Ltrs/Kg)"] || row["Quantity"]),
-        pack_size: String(row["Pack/Size"] || ""),
-        brand: String(row["Brand"] || ""),
-      })).filter(item => item.product_code && item.product_name);
+      console.log("Sample stock row from Excel:", jsonData[0]);
+
+      const stock = jsonData
+        .map((row: any) => {
+          const product_code = String(
+            row["Product Code"] ||
+              row["Item Code"] ||
+              row["Material Code"] ||
+              row["SKU Code"] ||
+              ""
+          );
+          const product_name = String(
+            row["Product Name"] ||
+              row["Item Name"] ||
+              row["Material Name"] ||
+              row["SKU Name"] ||
+              ""
+          );
+
+          return {
+            product_code,
+            product_name,
+            quantity: safeParseFloat(
+              row["Qty(EA/Ltrs/Kg)"] ||
+                row["Qty (EA/Ltrs/Kg)"] ||
+                row["Quantity"] ||
+                row["Qty"] ||
+                row["Closing Qty"]
+            ),
+            pack_size: String(
+              row["Pack/Size"] || row["Pack Size"] || row["Packsize"] || ""
+            ),
+            brand: String(row["Brand"] || row["Brand Name"] || ""),
+          };
+        })
+        .filter((item) => item.product_code && item.product_name);
 
       if (stock.length === 0) {
-        throw new Error("No valid stock records found in the file");
+        throw new Error("No valid stock records found in the file. Please check the column headers for Product Code / Item Code and Product Name / Item Name.");
       }
 
       // Delete existing and insert new
       await supabase.from("stock").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      
+
       const batchSize = 500;
       let totalInserted = 0;
-      
+
       for (let i = 0; i < stock.length; i += batchSize) {
         const batch = stock.slice(i, i + batchSize);
         const { error } = await supabase.from("stock").insert(batch);
@@ -231,7 +260,7 @@ export const useExcelUpload = () => {
 
       const orders = jsonData.map((row: any) => {
         const orderDate = excelDateToString(row["SO Date"] || row["Order Date"] || "");
-        
+
         return {
           order_no: String(row["SO No"] || row["Order No"] || ""),
           order_date: orderDate,
@@ -250,10 +279,10 @@ export const useExcelUpload = () => {
 
       // Delete existing and insert new
       await supabase.from("open_orders").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      
+
       const batchSize = 500;
       let totalInserted = 0;
-      
+
       for (let i = 0; i < orders.length; i += batchSize) {
         const batch = orders.slice(i, i + batchSize);
         const { error } = await supabase.from("open_orders").insert(batch);

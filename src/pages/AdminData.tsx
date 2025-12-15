@@ -52,30 +52,35 @@ const AdminData = () => {
       desc: "Invoice data for current fiscal year",
       fileName: "invoice_current.xlsx",
       type: "current",
+      clearLabel: "Clear current year invoices",
     },
     {
       title: "Historical Invoices (Q1-Q7)",
       desc: "Past quarter invoice data",
       fileName: "q1.xlsx, q2.xlsx, etc.",
       type: "historical",
+      clearLabel: "Clear historical invoices",
     },
     {
       title: "Open Sales Orders",
       desc: "Current open orders data",
       fileName: "open_orders.xlsx",
       type: "orders",
+      clearLabel: "Clear open orders",
     },
     {
       title: "Stock Data",
       desc: "Current inventory and stock levels",
       fileName: "stock.xlsx",
       type: "stock",
+      clearLabel: "Clear stock data",
     },
     {
       title: "Customer Master",
       desc: "Customer details and contact info",
       fileName: "customers.xlsx",
       type: "customers",
+      clearLabel: "Clear customer data",
     },
   ];
 
@@ -89,7 +94,7 @@ const AdminData = () => {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {dataCards.map((card, index) => (
-            <Card key={index} className="border-border">
+            <Card key={index} className="border-border flex flex-col justify-between">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileSpreadsheet className="h-5 w-5 text-primary" />
@@ -111,19 +116,21 @@ const AdminData = () => {
                     disabled={isUploading}
                   />
                 </div>
-                <Button className="w-full" size="sm" disabled={isUploading}>
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Importing...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload & Import
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button className="w-full" size="sm" disabled={isUploading}>
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload & Import
+                      </>
+                    )}
+                  </Button>
+                </div>
                 <p className="text-xs text-center">
                   {uploadCounts[card.type] ? (
                     <span className="text-primary font-medium">
