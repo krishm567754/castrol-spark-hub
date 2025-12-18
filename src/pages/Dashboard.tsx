@@ -517,7 +517,19 @@ const Dashboard = () => {
 
             {selectedReport && reports[selectedReport] && reports[selectedReport].rows.length > 0 ? (
               <div className="space-y-4">
-                <h2 className="text-lg font-semibold">{reportTitle}</h2>
+                <div className="flex items-baseline justify-between">
+                  <h2 className="text-lg font-semibold">{reportTitle}</h2>
+                  <span className="text-xs text-muted-foreground">
+                    Total: {" "}
+                    {reports[selectedReport].rows
+                      .reduce((sum, row) => {
+                        const val = row[row.length - 1];
+                        const num = typeof val === "number" ? val : parseFloat(String(val).replace(/[^0-9.-]/g, ""));
+                        return sum + (isNaN(num) ? 0 : num);
+                      }, 0)
+                      .toLocaleString()}
+                  </span>
+                </div>
                 <div className="overflow-x-auto rounded-md border border-border/60">
                   <table className="w-full text-sm">
                     <thead className="bg-card border-b border-border">
