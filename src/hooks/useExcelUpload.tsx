@@ -3,13 +3,33 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// Helper function to convert Excel date serial number to YYYY-MM-DD format
+// Helper function to convert Excel date (serial number or string) to YYYY-MM-DD format
 const excelDateToString = (excelDate: any): string => {
   if (!excelDate) return "";
 
-  // If it's already a string in a date format, try to parse it
+  // If it's already a string in a date format, try to parse common formats first
   if (typeof excelDate === "string") {
-    const date = new Date(excelDate);
+    const str = excelDate.trim();
+    if (!str) return "";
+
+    // Handle formats like DD/MM/YYYY, DD-MM-YYYY, DD/MM/YY, DD-MM-YY
+    const match = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+    if (match) {
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10) - 1; // JS months are 0-based
+      let year = parseInt(match[3], 10);
+      if (year < 100) {
+        // Assume 2000+ for two-digit years like 24, 25
+        year += 2000;
+      }
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split("T")[0];
+      }
+    }
+
+    // Fallback: let JS try to parse it
+    const date = new Date(str);
     if (!isNaN(date.getTime())) {
       return date.toISOString().split("T")[0];
     }
