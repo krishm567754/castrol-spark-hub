@@ -18,7 +18,7 @@ const Last7Days = () => {
 
         const { data, error } = await supabase
           .from("invoices")
-          .select("id, invoice_date, invoice_no, customer_name, sales_exec_name, total_value")
+          .select("*")
           .gte("invoice_date", sevenDaysAgo.toISOString().split("T")[0])
           .order("invoice_date", { ascending: false });
 

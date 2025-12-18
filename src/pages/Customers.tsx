@@ -20,7 +20,7 @@ const Customers = () => {
       try {
         const { data, error } = await supabase
           .from("customers")
-          .select("id, customer_code, customer_name, city, phone, category, sales_executive")
+          .select("*")
           .order("customer_name", { ascending: true });
 
         if (error) throw error;
@@ -40,16 +40,16 @@ const Customers = () => {
     () =>
       customers.filter((c) => {
         const term = nameOrCode.toLowerCase();
-        const cityTerm = city.toLowerCase();
-        const matchesNameOrCode =
-          !term ||
+        if (!term) return true;
+        return (
           c.customer_name.toLowerCase().includes(term) ||
-          c.customer_code.toLowerCase().includes(term);
-        const matchesCity = !cityTerm || (c.city || "").toLowerCase().includes(cityTerm);
-        return matchesNameOrCode && matchesCity;
+          c.customer_code.toLowerCase().includes(term)
+        );
       }),
-    [customers, nameOrCode, city]
+    [customers, nameOrCode]
   );
+
+  const [selectedCustomer, setSelectedCustomer] = useState<Tables<"customers"> | null>(null);
 
   return (
     <AppLayout>
@@ -59,78 +59,56 @@ const Customers = () => {
         <Card className="border-border">
           <CardHeader>
             <CardTitle>Search Customers</CardTitle>
-            <CardDescription>Search by name, code, city, or phone</CardDescription>
+            <CardDescription>Search by name or code, then tap to view details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="customer-search">Customer Name / Code</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="customer-search"
-                    placeholder="Search..."
-                    className="pl-9"
-                    value={nameOrCode}
-                    onChange={(e) => setNameOrCode(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="city-search">City</Label>
+            <div className="space-y-2">
+              <Label htmlFor="customer-search">Customer Name / Code</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="city-search"
-                  placeholder="Enter city..."
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  id="customer-search"
+                  placeholder="Search..."
+                  className="pl-9"
+                  value={nameOrCode}
+                  onChange={(e) => setNameOrCode(e.target.value)}
                 />
               </div>
             </div>
 
-            <ScrollArea className="h-[420px] rounded-md border border-border/60 mt-4">
+            <ScrollArea className="h-[320px] rounded-md border border-border/60 mt-2">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-card border-b border-border">
                   <tr className="text-left">
                     <th className="px-3 py-2 font-medium">Code</th>
                     <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">City</th>
-                    <th className="px-3 py-2 font-medium">Sales Exec</th>
-                    <th className="px-3 py-2 font-medium">Phone</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
+                      <td colSpan={2} className="px-3 py-8 text-center text-muted-foreground">
                         Loading customers...
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
+                      <td colSpan={2} className="px-3 py-8 text-center text-muted-foreground">
                         No customers found. Upload customer master data in Admin Data.
                       </td>
                     </tr>
                   ) : (
                     filtered.map((c) => (
-                      <tr key={c.id} className="border-b border-border/40 last:border-b-0">
+                      <tr
+                        key={c.id}
+                        className="border-b border-border/40 last:border-b-0 cursor-pointer hover:bg-muted/40"
+                        onClick={() => setSelectedCustomer(c)}
+                      >
                         <td className="px-3 py-2 align-top text-muted-foreground">
                           {c.customer_code}
                         </td>
                         <td className="px-3 py-2 align-top">
                           <div className="font-medium">{c.customer_name}</div>
-                          {c.category && (
-                            <div className="text-xs text-muted-foreground">{c.category}</div>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 align-top text-muted-foreground">
-                          {c.city}
-                        </td>
-                        <td className="px-3 py-2 align-top text-muted-foreground">
-                          {c.sales_executive}
-                        </td>
-                        <td className="px-3 py-2 align-top text-muted-foreground">
-                          {c.phone}
                         </td>
                       </tr>
                     ))
@@ -138,6 +116,20 @@ const Customers = () => {
                 </tbody>
               </table>
             </ScrollArea>
+
+            {selectedCustomer && (
+              <div className="mt-4 rounded-md border border-border/60 p-4 space-y-1 text-sm">
+                <div className="font-semibold">
+                  {selectedCustomer.customer_name} ({selectedCustomer.customer_code})
+                </div>
+                {selectedCustomer.address && (
+                  <div className="text-muted-foreground">Address: {selectedCustomer.address}</div>
+                )}
+                {selectedCustomer.phone && (
+                  <div className="text-muted-foreground">Contact: {selectedCustomer.phone}</div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
