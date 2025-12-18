@@ -3,6 +3,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { X } from "lucide-react";
 
 interface Last7HeaderRow {
   invoice_no: string;
@@ -100,7 +102,7 @@ const Last7Days = () => {
                     <th className="px-3 py-2 font-medium">Invoice No</th>
                     <th className="px-3 py-2 font-medium">Customer</th>
                     <th className="px-3 py-2 font-medium">Sales Exec</th>
-                    <th className="px-3 py-2 font-medium text-right">Value</th>
+                    <th className="px-3 py-2 font-medium text-right">Total Volume (Ltr)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -110,26 +112,27 @@ const Last7Days = () => {
                         Loading invoices...
                       </td>
                     </tr>
-                  ) : invoices.length === 0 ? (
+                  ) : headers.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
                         No invoices found for the last 7 days.
                       </td>
                     </tr>
                   ) : (
-                    invoices.map((inv) => (
-                      <tr key={inv.id} className="border-b border-border/40 last:border-b-0">
-                        <td className="px-3 py-2 align-top text-muted-foreground">{inv.invoice_date}</td>
-                        <td className="px-3 py-2 align-top font-medium">{inv.invoice_no}</td>
-                        <td className="px-3 py-2 align-top">{inv.customer_name}</td>
-                        <td className="px-3 py-2 align-top text-muted-foreground">{inv.sales_exec_name}</td>
+                    headers.map((row) => (
+                      <tr
+                        key={row.invoice_no}
+                        className="border-b border-border/40 last:border-b-0 cursor-pointer hover:bg-muted/40"
+                        onClick={() => setSelectedInvoice(row.invoice_no)}
+                      >
+                        <td className="px-3 py-2 align-top text-muted-foreground">{row.invoice_date}</td>
+                        <td className="px-3 py-2 align-top font-medium">{row.invoice_no}</td>
+                        <td className="px-3 py-2 align-top">{row.customer_name}</td>
+                        <td className="px-3 py-2 align-top text-muted-foreground">
+                          {row.sales_exec_name || "-"}
+                        </td>
                         <td className="px-3 py-2 align-top text-right font-medium">
-                          {inv.total_value != null
-                            ? `₹${Number(inv.total_value).toLocaleString("en-IN", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}`
-                            : "-"}
+                          {row.total_volume.toFixed(2)}
                         </td>
                       </tr>
                     ))
@@ -137,6 +140,49 @@ const Last7Days = () => {
                 </tbody>
               </table>
             </div>
+
+            <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <div className="flex items-center justify-between gap-4">
+                    <DialogTitle>Invoice Details</DialogTitle>
+                    <button
+                      type="button"
+                      className="rounded-full border border-border p-1 text-muted-foreground hover:bg-muted/60"
+                      onClick={() => setSelectedInvoice(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </DialogHeader>
+                {selectedInvoice && details[selectedInvoice] && (
+                  <div className="mt-2 border border-border/60 rounded-md overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-card border-b border-border">
+                        <tr className="text-left">
+                          <th className="px-3 py-2 font-medium">Product</th>
+                          <th className="px-3 py-2 font-medium">Brand</th>
+                          <th className="px-3 py-2 font-medium text-right">Volume (Ltr)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {details[selectedInvoice].map((d, idx) => (
+                          <tr key={idx} className="border-b border-border/40 last:border-b-0">
+                            <td className="px-3 py-2 align-top">{d.product_name || "-"}</td>
+                            <td className="px-3 py-2 align-top text-muted-foreground">
+                              {d.product_brand_name || "-"}
+                            </td>
+                            <td className="px-3 py-2 align-top text-right font-medium">
+                              {d.product_volume != null ? Number(d.product_volume).toFixed(2) : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </div>

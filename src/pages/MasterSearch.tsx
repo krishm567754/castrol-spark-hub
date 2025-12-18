@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSalesExecScope } from "@/hooks/useSalesExecScope";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface MasterHeaderRow {
   invoice_no: string;
@@ -174,14 +175,8 @@ const MasterSearch = () => {
                     headers.map((row) => (
                       <tr
                         key={row.invoice_no}
-                        className={`border-b border-border/40 last:border-b-0 cursor-pointer hover:bg-muted/40 ${
-                          selectedInvoice === row.invoice_no ? "bg-muted/40" : ""
-                        }`}
-                        onClick={() =>
-                          setSelectedInvoice((prev) =>
-                            prev === row.invoice_no ? null : row.invoice_no,
-                          )
-                        }
+                        className="border-b border-border/40 last:border-b-0 cursor-pointer hover:bg-muted/40"
+                        onClick={() => setSelectedInvoice(row.invoice_no)}
                       >
                         <td className="px-3 py-2 align-top text-muted-foreground">{row.invoice_date}</td>
                         <td className="px-3 py-2 align-top font-medium">{row.invoice_no}</td>
@@ -199,32 +194,48 @@ const MasterSearch = () => {
               </table>
             </div>
 
-            {selectedInvoice && details[selectedInvoice] && (
-              <div className="mt-4 border border-border/60 rounded-md overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-card border-b border-border">
-                    <tr className="text-left">
-                      <th className="px-3 py-2 font-medium">Product</th>
-                      <th className="px-3 py-2 font-medium">Brand</th>
-                      <th className="px-3 py-2 font-medium text-right">Volume (Ltr)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {details[selectedInvoice].map((d, idx) => (
-                      <tr key={idx} className="border-b border-border/40 last:border-b-0">
-                        <td className="px-3 py-2 align-top">{d.product_name || "-"}</td>
-                        <td className="px-3 py-2 align-top text-muted-foreground">
-                          {d.product_brand_name || "-"}
-                        </td>
-                        <td className="px-3 py-2 align-top text-right font-medium">
-                          {d.product_volume != null ? Number(d.product_volume).toFixed(2) : "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <div className="flex items-center justify-between gap-4">
+                    <DialogTitle>Invoice Details</DialogTitle>
+                    <button
+                      type="button"
+                      className="rounded-full border border-border p-1 text-muted-foreground hover:bg-muted/60"
+                      onClick={() => setSelectedInvoice(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </DialogHeader>
+                {selectedInvoice && details[selectedInvoice] && (
+                  <div className="mt-2 border border-border/60 rounded-md overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-card border-b border-border">
+                        <tr className="text-left">
+                          <th className="px-3 py-2 font-medium">Product</th>
+                          <th className="px-3 py-2 font-medium">Brand</th>
+                          <th className="px-3 py-2 font-medium text-right">Volume (Ltr)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {details[selectedInvoice].map((d, idx) => (
+                          <tr key={idx} className="border-b border-border/40 last:border-b-0">
+                            <td className="px-3 py-2 align-top">{d.product_name || "-"}</td>
+                            <td className="px-3 py-2 align-top text-muted-foreground">
+                              {d.product_brand_name || "-"}
+                            </td>
+                            <td className="px-3 py-2 align-top text-right font-medium">
+                              {d.product_volume != null ? Number(d.product_volume).toFixed(2) : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </div>
