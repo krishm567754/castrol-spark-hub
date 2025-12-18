@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, FileSpreadsheet, Loader2 } from "lucide-react";
 import { useExcelUpload } from "@/hooks/useExcelUpload";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminData = () => {
   const {
@@ -20,6 +21,13 @@ const AdminData = () => {
     clearOpenOrders,
   } = useExcelUpload();
   const [uploadCounts, setUploadCounts] = useState<Record<string, number>>({});
+  const [datasetCounts, setDatasetCounts] = useState<{
+    invoicesCurrent: number;
+    invoicesHistorical: number;
+    customers: number;
+    stock: number;
+    openOrders: number;
+  }>({ invoicesCurrent: 0, invoicesHistorical: 0, customers: 0, stock: 0, openOrders: 0 });
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -149,14 +157,103 @@ const AdminData = () => {
                   ) : (
                     <span className="text-muted-foreground">No data imported yet</span>
                   )}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </AppLayout>
-  );
+                 </p>
+               </CardContent>
+             </Card>
+           ))}
+         </div>
+
+         <Card className="border-border">
+           <CardHeader>
+             <CardTitle>Loaded Data Overview</CardTitle>
+             <CardDescription>See which datasets are loaded and clear them if needed</CardDescription>
+           </CardHeader>
+           <CardContent className="space-y-3 text-sm">
+             <div className="flex items-center justify-between">
+               <span>Current Year Invoices</span>
+               <div className="flex items-center gap-3">
+                 <span className="text-muted-foreground">
+                   {datasetCounts.invoicesCurrent.toLocaleString()} rows
+                 </span>
+                 <Button
+                   variant="outline"
+                   size="xs"
+                   disabled={isUploading}
+                   onClick={() => clearInvoices(true)}
+                 >
+                   Clear
+                 </Button>
+               </div>
+             </div>
+             <div className="flex items-center justify-between">
+               <span>Historical Invoices</span>
+               <div className="flex items-center gap-3">
+                 <span className="text-muted-foreground">
+                   {datasetCounts.invoicesHistorical.toLocaleString()} rows
+                 </span>
+                 <Button
+                   variant="outline"
+                   size="xs"
+                   disabled={isUploading}
+                   onClick={() => clearInvoices(false)}
+                 >
+                   Clear
+                 </Button>
+               </div>
+             </div>
+             <div className="flex items-center justify-between">
+               <span>Customer Master</span>
+               <div className="flex items-center gap-3">
+                 <span className="text-muted-foreground">
+                   {datasetCounts.customers.toLocaleString()} rows
+                 </span>
+                 <Button
+                   variant="outline"
+                   size="xs"
+                   disabled={isUploading}
+                   onClick={clearCustomers}
+                 >
+                   Clear
+                 </Button>
+               </div>
+             </div>
+             <div className="flex items-center justify-between">
+               <span>Stock</span>
+               <div className="flex items-center gap-3">
+                 <span className="text-muted-foreground">
+                   {datasetCounts.stock.toLocaleString()} rows
+                 </span>
+                 <Button
+                   variant="outline"
+                   size="xs"
+                   disabled={isUploading}
+                   onClick={clearStock}
+                 >
+                   Clear
+                 </Button>
+               </div>
+             </div>
+             <div className="flex items-center justify-between">
+               <span>Open Orders</span>
+               <div className="flex items-center gap-3">
+                 <span className="text-muted-foreground">
+                   {datasetCounts.openOrders.toLocaleString()} rows
+                 </span>
+                 <Button
+                   variant="outline"
+                   size="xs"
+                   disabled={isUploading}
+                   onClick={clearOpenOrders}
+                 >
+                   Clear
+                 </Button>
+               </div>
+             </div>
+           </CardContent>
+         </Card>
+       </div>
+     </AppLayout>
+   );
 };
 
 export default AdminData;

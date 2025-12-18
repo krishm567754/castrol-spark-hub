@@ -87,6 +87,11 @@ const Dashboard = () => {
   const [reports, setReports] = useState<Record<string, ReportTable>>({});
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [reportTitle, setReportTitle] = useState<string>("");
+  const [rawInvoices, setRawInvoices] = useState<any[]>([]);
+  const [unbilledDetailsBySe, setUnbilledDetailsBySe] = useState<Record<string, { code: string; name: string; volume: number }[]>>({});
+  const [drilldownTitle, setDrilldownTitle] = useState<string>("");
+  const [drilldownItems, setDrilldownItems] = useState<{ label: string; value: number }[]>([]);
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
 
   const getMonthLabel = (offset: number) => {
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
@@ -134,6 +139,7 @@ const Dashboard = () => {
         // Build detailed KPI reports based on previous tool logic
         const reportsMap: Record<string, ReportTable> = {};
         const invoices = invoiceData || [];
+        setRawInvoices(invoices);
 
         // Volume by Sales Exec
         const volBySeMap: Record<string, number> = {};
@@ -228,9 +234,7 @@ const Dashboard = () => {
         // High volume count (>=9L per SE+Customer)
         const customerCoreVol: Record<string, number> = {};
         coreInvoices.forEach((r: any) => {
-          const key = `${getStr(r.sales_exec_name)}|${getStr(
-            r.customer_name
-          )}`;
+          const key = `${getStr(r.sales_exec_name)}|${getStr(r.customer_name)}`;
           customerCoreVol[key] = (customerCoreVol[key] || 0) + getNum(r.product_volume);
         });
         const highVolCounts: Record<string, number> = {};
@@ -333,9 +337,15 @@ const Dashboard = () => {
           .filter((c) => c.code && c.volume < 9);
 
         const unbilledSummary: Record<string, number> = {};
+        const unbilledDetailMap: Record<string, { code: string; name: string; volume: number }[]> = {};
         fullUnbilled.forEach((c) => {
-          if (c.se) unbilledSummary[c.se] = (unbilledSummary[c.se] || 0) + 1;
+          if (c.se) {
+            unbilledSummary[c.se] = (unbilledSummary[c.se] || 0) + 1;
+            if (!unbilledDetailMap[c.se]) unbilledDetailMap[c.se] = [];
+            unbilledDetailMap[c.se].push({ code: c.code, name: c.name, volume: c.volume });
+          }
         });
+        setUnbilledDetailsBySe(unbilledDetailMap);
 
         reportsMap["unbilled"] = {
           headers: [
@@ -520,11 +530,14 @@ const Dashboard = () => {
                 <div className="flex items-baseline justify-between">
                   <h2 className="text-lg font-semibold">{reportTitle}</h2>
                   <span className="text-xs text-muted-foreground">
-                    Total: {" "}
+                    Total:{" "}
                     {reports[selectedReport].rows
                       .reduce((sum, row) => {
                         const val = row[row.length - 1];
-                        const num = typeof val === "number" ? val : parseFloat(String(val).replace(/[^0-9.-]/g, ""));
+                        const num =
+                          typeof val === "number"
+                            ? val
+                            : parseFloat(String(val).replace(/[^0-9.-]/g, ""));
                         return sum + (isNaN(num) ? 0 : num);
                       }, 0)
                       .toLocaleString()}
@@ -545,7 +558,161 @@ const Dashboard = () => {
                       {reports[selectedReport].rows.map((row, idx) => (
                         <tr
                           key={idx}
-                          className="border-b border-border/40 last:border-b-0 hover:bg-muted/40"
+                          className="border-b border-border/40 last:border-b-0 hover:bg-muted/40 cursor-pointer"
+                          onClick={() => {
+                            const se = String(row[0] ?? "");
+                            if (!se) return;
+
+                            const items: { label: string; value: number }[] = [];
+
+                            const pushItem = (label: string, value: number) => {
+                              if (!label) return;
+                              const existing = items.find((i) => i.label === label);
+                              if (existing) {
+                                existing.value += value;
+                              } else {
+                                items.push({ label, value });
+                              }
+                            };
+
+                            const buildCoreKey = (r: any) =>
+                              `${getStr(r.sales_exec_name)}|${getStr(r.customer_name)}`;
+
+                            switch (selectedReport) {
+                              case "volumeBySE":
+                                rawInvoices.forEach((r: any) => {
+                                  if (getStr(r.sales_exec_name) === se) {
+                                    pushItem(
+                                      getStr(r.customer_name),
+                                      getNum(r.product_volume)
+                                    );
+                                  }
+                                });
+                                setDrilldownTitle(`Customers for ${se}`);
+                                break;
+                              case "activCount":
+                                rawInvoices
+                                  .filter((r: any) => isActiv(r.product_brand_name))
+                                  .forEach((r: any) => {
+                                    if (getStr(r.sales_exec_name) === se) {
+                                      pushItem(
+                                        getStr(r.customer_name),
+                                        getNum(r.product_volume)
+                                      );
+                                    }
+                                  });
+                                setDrilldownTitle(`'Activ' customers for ${se}`);
+                                break;
+                              case "power1Count":
+                                rawInvoices
+                                  .filter((r: any) =>
+                                    POWER1_PRODUCTS_LIST.includes(getStr(r.product_name))
+                                  )
+                                  .forEach((r: any) => {
+                                    if (getStr(r.sales_exec_name) === se) {
+                                      pushItem(
+                                        getStr(r.customer_name),
+                                        getNum(r.product_volume)
+                                      );
+                                    }
+                                  });
+                                setDrilldownTitle(`'Power1' customers for ${se}`);
+                                break;
+                              case "magnatecCount":
+                                rawInvoices
+                                  .filter((r: any) => isMagnatec(r.product_brand_name))
+                                  .forEach((r: any) => {
+                                    if (getStr(r.sales_exec_name) === se) {
+                                      pushItem(
+                                        getStr(r.customer_name),
+                                        getNum(r.product_volume)
+                                      );
+                                    }
+                                  });
+                                setDrilldownTitle(`'Magnatec' customers for ${se}`);
+                                break;
+                              case "crbCount":
+                                rawInvoices
+                                  .filter((r: any) => isCrb(r.product_brand_name))
+                                  .forEach((r: any) => {
+                                    if (getStr(r.sales_exec_name) === se) {
+                                      pushItem(
+                                        getStr(r.customer_name),
+                                        getNum(r.product_volume)
+                                      );
+                                    }
+                                  });
+                                setDrilldownTitle(`'CRB Turbomax' customers for ${se}`);
+                                break;
+                              case "highVolCount": {
+                                const customerCoreVol: Record<string, number> = {};
+                                rawInvoices
+                                  .filter((r: any) =>
+                                    isCoreProduct(
+                                      r.product_brand_name,
+                                      r.product_name
+                                    )
+                                  )
+                                  .forEach((r: any) => {
+                                    const key = buildCoreKey(r);
+                                    if (!key.startsWith(`${se}|`)) return;
+                                    customerCoreVol[key] =
+                                      (customerCoreVol[key] || 0) +
+                                      getNum(r.product_volume);
+                                  });
+                                Object.entries(customerCoreVol).forEach(
+                                  ([key, vol]) => {
+                                    if (vol >= 9) {
+                                      const label = key.split("|")[1] || "";
+                                      pushItem(label, vol);
+                                    }
+                                  }
+                                );
+                                setDrilldownTitle(
+                                  `High-volume customers (>= 9L) for ${se}`
+                                );
+                                break;
+                              }
+                              case "autocareCount": {
+                                const autocareVolByCustomer: Record<string, number> = {};
+                                rawInvoices
+                                  .filter((r: any) => isAutocare(r.product_brand_name))
+                                  .forEach((r: any) => {
+                                    if (getStr(r.sales_exec_name) !== se) return;
+                                    const custCode = getStr(r.customer_code);
+                                    if (!custCode) return;
+                                    autocareVolByCustomer[custCode] =
+                                      (autocareVolByCustomer[custCode] || 0) +
+                                      getNum(r.product_volume);
+                                  });
+                                Object.entries(autocareVolByCustomer)
+                                  .filter(([, vol]) => vol >= 5)
+                                  .forEach(([code, vol]) => {
+                                    pushItem(code, vol);
+                                  });
+                                setDrilldownTitle(
+                                  `Autocare customers (>= 5L) for ${se}`
+                                );
+                                break;
+                              }
+                              case "unbilled": {
+                                const details = unbilledDetailsBySe[se] || [];
+                                details.forEach((d) => {
+                                  pushItem(`${d.name} (${d.code})`, d.volume);
+                                });
+                                setDrilldownTitle(
+                                  `Under-billed customers (< 9L) for ${se}`
+                                );
+                                break;
+                              }
+                              default:
+                                return;
+                            }
+
+                            items.sort((a, b) => b.value - a.value);
+                            setDrilldownItems(items);
+                            setDrilldownOpen(true);
+                          }}
                         >
                           {row.map((cell, cIdx) => (
                             <td
@@ -560,6 +727,37 @@ const Dashboard = () => {
                     </tbody>
                   </table>
                 </div>
+
+                <Dialog open={drilldownOpen} onOpenChange={setDrilldownOpen}>
+                  <DialogContent className="max-w-xl max-h-[80vh] overflow-hidden">
+                    <DialogHeader>
+                      <DialogTitle>{drilldownTitle}</DialogTitle>
+                    </DialogHeader>
+                    <div className="max-h-[60vh] overflow-y-auto border border-border/60 rounded-md">
+                      <table className="w-full text-sm">
+                        <thead className="bg-card border-b border-border">
+                          <tr className="text-left">
+                            <th className="px-3 py-2 font-medium">Customer</th>
+                            <th className="px-3 py-2 font-medium text-right">Volume (Ltr)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {drilldownItems.map((item) => (
+                            <tr
+                              key={item.label}
+                              className="border-b border-border/40 last:border-b-0"
+                            >
+                              <td className="px-3 py-2 align-top">{item.label}</td>
+                              <td className="px-3 py-2 align-top text-right font-medium">
+                                {item.value.toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             ) : (
               <div className="mt-2 p-8 border border-dashed border-border rounded-lg text-center text-muted-foreground">
