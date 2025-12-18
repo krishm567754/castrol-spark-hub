@@ -195,6 +195,7 @@ export const useExcelUpload = () => {
               row["Item Name"] ||
               row["Material Name"] ||
               row["SKU Name"] ||
+              row["Product Description"] ||
               ""
           );
 
@@ -218,7 +219,7 @@ export const useExcelUpload = () => {
 
       if (stock.length === 0) {
         throw new Error(
-          "No valid stock records found in the file. Please check the column headers for Product Code / Item Code and Product Name / Item Name."
+          "No valid stock records found in the file. Please check that it has Product Description / Product Name and quantity columns like Qty(EA/Ltrs/Kg)."
         );
       }
 

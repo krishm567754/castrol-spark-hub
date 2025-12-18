@@ -118,19 +118,33 @@ const Customers = () => {
               </table>
             </ScrollArea>
 
-            {selectedCustomer && (
-              <div className="mt-4 rounded-md border border-border/60 p-4 space-y-1 text-sm">
-                <div className="font-semibold">
-                  {selectedCustomer.customer_name} ({selectedCustomer.customer_code})
-                </div>
-                {selectedCustomer.address && (
-                  <div className="text-muted-foreground">Address: {selectedCustomer.address}</div>
+            <Dialog
+              open={!!selectedCustomer}
+              onOpenChange={(open) => !open && setSelectedCustomer(null)}
+            >
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Customer Details</DialogTitle>
+                </DialogHeader>
+                {selectedCustomer && (
+                  <div className="space-y-2 text-sm">
+                    <div className="font-semibold">
+                      {selectedCustomer.customer_name} ({selectedCustomer.customer_code})
+                    </div>
+                    {selectedCustomer.address && (
+                      <div className="text-muted-foreground">
+                        Address: {selectedCustomer.address}
+                      </div>
+                    )}
+                    {selectedCustomer.phone && (
+                      <div className="text-muted-foreground">
+                        Contact: {selectedCustomer.phone}
+                      </div>
+                    )}
+                  </div>
                 )}
-                {selectedCustomer.phone && (
-                  <div className="text-muted-foreground">Contact: {selectedCustomer.phone}</div>
-                )}
-              </div>
-            )}
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </div>
