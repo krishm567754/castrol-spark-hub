@@ -72,42 +72,44 @@ const Stock = () => {
               </div>
             </div>
 
-            <ScrollArea className="h-[420px] rounded-md border border-border/60">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-card border-b border-border">
-                  <tr className="text-left">
-                    <th className="px-3 py-2 font-medium">Product Name</th>
-                    <th className="px-3 py-2 font-medium text-right">Quantity (Ltr)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={2} className="px-3 py-8 text-center text-muted-foreground">
-                        Loading stock...
-                      </td>
+            <div className="rounded-md border border-border/60 overflow-x-auto">
+              <ScrollArea className="h-[420px] min-w-[520px]">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-card border-b border-border">
+                    <tr className="text-left">
+                      <th className="px-3 py-2 font-medium">Product Name</th>
+                      <th className="px-3 py-2 font-medium text-right">Quantity (Ltr)</th>
                     </tr>
-                  ) : filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={2} className="px-3 py-8 text-center text-muted-foreground">
-                        No stock data found. Upload stock in Admin Data.
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map((item) => (
-                      <tr key={item.id} className="border-b border-border/40 last:border-b-0">
-                        <td className="px-3 py-2 align-top">
-                          <div className="font-medium">{item.product_name}</div>
-                        </td>
-                        <td className="px-3 py-2 align-top text-right font-medium">
-                          {Number(item.quantity ?? 0).toFixed(2)}
+                  </thead>
+                  <tbody>
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={2} className="px-3 py-8 text-center text-muted-foreground">
+                          Loading stock...
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </ScrollArea>
+                    ) : filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="px-3 py-8 text-center text-muted-foreground">
+                          No stock data found. Upload stock in Admin Data.
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((item) => (
+                        <tr key={item.id} className="border-b border-border/40 last:border-b-0">
+                          <td className="px-3 py-2 align-top">
+                            <div className="font-medium">{item.product_name}</div>
+                          </td>
+                          <td className="px-3 py-2 align-top text-right font-medium">
+                            {Number(item.quantity ?? 0).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       </div>

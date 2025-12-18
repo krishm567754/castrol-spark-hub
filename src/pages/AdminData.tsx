@@ -177,7 +177,7 @@ const AdminData = () => {
                  </span>
                  <Button
                    variant="outline"
-                   size="xs"
+                   size="sm"
                    disabled={isUploading}
                    onClick={() => clearInvoices(true)}
                  >
@@ -193,7 +193,7 @@ const AdminData = () => {
                  </span>
                  <Button
                    variant="outline"
-                   size="xs"
+                   size="sm"
                    disabled={isUploading}
                    onClick={() => clearInvoices(false)}
                  >
@@ -209,7 +209,7 @@ const AdminData = () => {
                  </span>
                  <Button
                    variant="outline"
-                   size="xs"
+                   size="sm"
                    disabled={isUploading}
                    onClick={clearCustomers}
                  >
@@ -225,7 +225,7 @@ const AdminData = () => {
                  </span>
                  <Button
                    variant="outline"
-                   size="xs"
+                   size="sm"
                    disabled={isUploading}
                    onClick={clearStock}
                  >
@@ -241,7 +241,7 @@ const AdminData = () => {
                  </span>
                  <Button
                    variant="outline"
-                   size="xs"
+                   size="sm"
                    disabled={isUploading}
                    onClick={clearOpenOrders}
                  >

@@ -14,9 +14,19 @@ const OpenOrders = () => {
     const loadOrders = async () => {
       setIsLoading(true);
       try {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2)
+          .toISOString()
+          .split("T")[0];
+        const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+          .toISOString()
+          .split("T")[0];
+
         const { data, error } = await supabase
           .from("open_orders")
           .select("*")
+          .gte("order_date", start)
+          .lt("order_date", end)
           .order("order_date", { ascending: false });
 
         if (error) throw error;
@@ -35,23 +45,12 @@ const OpenOrders = () => {
   const grouped = useMemo(() => {
     if (orders.length === 0) return [] as [string, Tables<"open_orders">[]][];
 
-    // Use the latest order_date in data as the reference and show last 3 days from that
-    const latest = new Date(orders[0].order_date);
-    const threeDaysAgo = new Date(latest);
-    threeDaysAgo.setDate(latest.getDate() - 2);
-
     const map = new Map<string, Tables<"open_orders">[]>();
-    orders
-      .filter((o) => {
-        const d = new Date(o.order_date);
-        if (isNaN(d.getTime())) return false;
-        return d >= threeDaysAgo && d <= latest;
-      })
-      .forEach((o) => {
-        const key = o.order_no || "Unknown";
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(o);
-      });
+    orders.forEach((o) => {
+      const key = o.order_no || "Unknown";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(o);
+    });
 
     return Array.from(map.entries());
   }, [orders]);
@@ -93,6 +92,9 @@ const OpenOrders = () => {
                   ) : (
                     grouped.map(([orderNo, rows]) => {
                       const first = rows[0];
+                      const formattedDate = first.order_date
+                        ? new Date(first.order_date).toLocaleDateString("en-GB")
+                        : "-";
                       return (
                         <tr
                           key={orderNo}
@@ -100,7 +102,7 @@ const OpenOrders = () => {
                           onClick={() => setSelectedOrder(first)}
                         >
                           <td className="px-3 py-2 align-top text-muted-foreground">
-                            {first.order_date}
+                            {formattedDate}
                           </td>
                           <td className="px-3 py-2 align-top">{first.customer_name}</td>
                           <td className="px-3 py-2 align-top text-muted-foreground">
