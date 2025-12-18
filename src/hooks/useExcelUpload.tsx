@@ -80,6 +80,17 @@ export const useExcelUpload = () => {
         throw new Error("No valid invoice records found in the file");
       }
 
+      // For current-year uploads, clear existing current-year invoices to avoid duplicates
+      if (isCurrentYear) {
+        const { error: clearError } = await supabase
+          .from("invoices")
+          .delete()
+          .eq("is_current_year", true);
+        if (clearError) {
+          console.error("Failed to clear existing current-year invoices", clearError);
+        }
+      }
+
       // Insert in batches of 500
       const batchSize = 500;
       let totalInserted = 0;

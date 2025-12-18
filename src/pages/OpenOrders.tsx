@@ -14,17 +14,9 @@ const OpenOrders = () => {
     const loadOrders = async () => {
       setIsLoading(true);
       try {
-        const today = new Date();
-        const threeDaysAgo = new Date();
-        threeDaysAgo.setDate(today.getDate() - 3);
-
-        const formatDate = (d: Date) => d.toISOString().split("T")[0];
-
         const { data, error } = await supabase
           .from("open_orders")
           .select("*")
-          .gte("order_date", formatDate(threeDaysAgo))
-          .lte("order_date", formatDate(today))
           .order("order_date", { ascending: false });
 
         if (error) throw error;
@@ -41,12 +33,26 @@ const OpenOrders = () => {
   }, []);
 
   const grouped = useMemo(() => {
+    if (orders.length === 0) return [] as [string, Tables<"open_orders">[]][];
+
+    // Use the latest order_date in data as the reference and show last 3 days from that
+    const latest = new Date(orders[0].order_date);
+    const threeDaysAgo = new Date(latest);
+    threeDaysAgo.setDate(latest.getDate() - 2);
+
     const map = new Map<string, Tables<"open_orders">[]>();
-    orders.forEach((o) => {
-      const key = o.order_no || "Unknown";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(o);
-    });
+    orders
+      .filter((o) => {
+        const d = new Date(o.order_date);
+        if (isNaN(d.getTime())) return false;
+        return d >= threeDaysAgo && d <= latest;
+      })
+      .forEach((o) => {
+        const key = o.order_no || "Unknown";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(o);
+      });
+
     return Array.from(map.entries());
   }, [orders]);
 

@@ -12,6 +12,7 @@ interface UnbilledRow {
 
 interface UnbilledDetailRow {
   code: string;
+  name: string;
   volume: number;
 }
 
@@ -95,6 +96,7 @@ const Unbilled = () => {
             const code = getStr(c.customer_code);
             return {
               code,
+              name: getStr(c.customer_name),
               se: getStr(c.sales_executive),
               volume: coreVolByCustomerCode[code] || 0,
             };
@@ -107,7 +109,7 @@ const Unbilled = () => {
           if (!c.se) return;
           summary[c.se] = (summary[c.se] || 0) + 1;
           if (!detailMap[c.se]) detailMap[c.se] = [];
-          detailMap[c.se].push({ code: c.code, volume: c.volume });
+          detailMap[c.se].push({ code: c.code, name: c.name, volume: c.volume });
         });
 
         const rows: UnbilledRow[] = Object.entries(summary)
@@ -176,6 +178,43 @@ const Unbilled = () => {
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={!!selectedSe} onOpenChange={(open) => !open && setSelectedSe(null)}>
+          <DialogContent className="max-w-xl max-h-[80vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>
+                Under-billed Customers{selectedSe ? ` - ${selectedSe}` : ""}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedSe && (
+              <div className="max-h-[60vh] overflow-y-auto border border-border/60 rounded-md">
+                <table className="w-full text-sm">
+                  <thead className="bg-card border-b border-border">
+                    <tr className="text-left">
+                      <th className="px-3 py-2 font-medium">Customer Code</th>
+                      <th className="px-3 py-2 font-medium">Customer Name</th>
+                      <th className="px-3 py-2 font-medium text-right">Volume (Ltr)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(detailBySe[selectedSe] || []).map((c) => (
+                      <tr
+                        key={c.code}
+                        className="border-b border-border/40 last:border-b-0"
+                      >
+                        <td className="px-3 py-2 align-top text-muted-foreground">{c.code}</td>
+                        <td className="px-3 py-2 align-top">{c.name}</td>
+                        <td className="px-3 py-2 align-top text-right font-medium">
+                          {c.volume.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
