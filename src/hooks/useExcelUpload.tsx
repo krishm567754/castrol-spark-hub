@@ -214,7 +214,7 @@ export const useExcelUpload = () => {
             brand: String(row["Brand"] || row["Brand Name"] || ""),
           };
         })
-        .filter((item) => item.product_code && item.product_name);
+        .filter((item) => item.product_name);
 
       if (stock.length === 0) {
         throw new Error(
