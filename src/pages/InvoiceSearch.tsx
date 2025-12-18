@@ -45,8 +45,15 @@ const InvoiceSearch = () => {
         .select(
           "invoice_no, invoice_date, customer_name, sales_exec_name, product_name, product_brand_name, product_volume"
         )
-        .eq("fiscal_year", thisYear)
-        .ilike("invoice_no", `%${invoiceNo.trim()}%`);
+        .eq("fiscal_year", thisYear);
+
+      const terms = invoiceNo.trim().split(/\s+/).filter(Boolean);
+      if (terms.length === 1) {
+        query = query.ilike("invoice_no", `%${terms[0]}%`);
+      } else if (terms.length > 1) {
+        const orFilter = terms.map((t) => `invoice_no.ilike.%${t}%`).join(",");
+        query = query.or(orFilter);
+      }
 
       if (!hasAllAccess && allowedSalesExecNames.length > 0) {
         query = query.in("sales_exec_name", allowedSalesExecNames);
