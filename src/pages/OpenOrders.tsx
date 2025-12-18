@@ -18,7 +18,7 @@ const OpenOrders = () => {
 
         const { data, error } = await supabase
           .from("open_orders")
-          .select("id, order_date, order_no, customer_name, sales_exec_name, product_name, quantity, status")
+          .select("*")
           .gte("order_date", threeDaysAgo.toISOString().split("T")[0])
           .order("order_date", { ascending: false });
 

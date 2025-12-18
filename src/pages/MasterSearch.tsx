@@ -6,37 +6,46 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSalesExecScope } from "@/hooks/useSalesExecScope";
 
-interface MasterRow {
-  invoice_date: string;
+interface MasterHeaderRow {
   invoice_no: string;
+  invoice_date: string;
   customer_name: string;
-  product_brand_name: string | null;
-  product_name: string | null;
   sales_exec_name: string | null;
-  total_value: number | null;
+  total_volume: number;
+}
+
+interface MasterDetailRow {
+  product_name: string | null;
+  product_brand_name: string | null;
+  product_volume: number | null;
 }
 
 const MasterSearch = () => {
   const [customer, setCustomer] = useState("");
   const [product, setProduct] = useState("");
-  const [results, setResults] = useState<MasterRow[]>([]);
+  const [headers, setHeaders] = useState<MasterHeaderRow[]>([]);
+  const [details, setDetails] = useState<Record<string, MasterDetailRow[]>>({});
+  const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { loading: scopeLoading, hasAllAccess, allowedSalesExecNames } = useSalesExecScope();
 
   const handleSearch = async () => {
     if (!customer.trim() && !product.trim()) return;
     setIsLoading(true);
     setError(null);
+    setSelectedInvoice(null);
 
     try {
       let query = supabase
         .from("invoices")
         .select(
-          "invoice_date, invoice_no, customer_name, product_brand_name, product_name, sales_exec_name, total_value"
+          "invoice_no, invoice_date, customer_name, sales_exec_name, product_brand_name, product_name, product_volume"
         )
         .order("invoice_date", { ascending: false })
-        .limit(200);
+        .limit(500);
 
       if (customer.trim()) {
         query = query.ilike("customer_name", `%${customer.trim()}%`);
@@ -49,13 +58,45 @@ const MasterSearch = () => {
         );
       }
 
+      if (!hasAllAccess && allowedSalesExecNames.length > 0) {
+        query = query.in("sales_exec_name", allowedSalesExecNames);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
-      setResults(data || []);
+
+      const rows = data || [];
+      const headerMap = new Map<string, MasterHeaderRow>();
+      const detailMap: Record<string, MasterDetailRow[]> = {};
+
+      for (const row of rows) {
+        const key = row.invoice_no as string;
+        if (!headerMap.has(key)) {
+          headerMap.set(key, {
+            invoice_no: key,
+            invoice_date: row.invoice_date as string,
+            customer_name: row.customer_name as string,
+            sales_exec_name: row.sales_exec_name as string | null,
+            total_volume: 0,
+          });
+          detailMap[key] = [];
+        }
+        const hdr = headerMap.get(key)!;
+        hdr.total_volume += Number(row.product_volume || 0);
+        detailMap[key].push({
+          product_name: row.product_name as string | null,
+          product_brand_name: row.product_brand_name as string | null,
+          product_volume: row.product_volume as number | null,
+        });
+      }
+
+      setHeaders(Array.from(headerMap.values()));
+      setDetails(detailMap);
     } catch (err: any) {
       console.error("Master search failed", err);
       setError(err.message || "Failed to search invoices");
-      setResults([]);
+      setHeaders([]);
+      setDetails({});
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +110,9 @@ const MasterSearch = () => {
         <Card className="border-border">
           <CardHeader>
             <CardTitle>Search All Invoices</CardTitle>
-            <CardDescription>Search current and historical invoices by customer and product</CardDescription>
+            <CardDescription>
+              Search current and historical invoices by customer and product. Results are grouped by invoice.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -95,7 +138,7 @@ const MasterSearch = () => {
             <Button
               className="w-full sm:w-auto"
               onClick={handleSearch}
-              disabled={isLoading || (!customer.trim() && !product.trim())}
+              disabled={isLoading || scopeLoading || (!customer.trim() && !product.trim())}
             >
               <Search className="mr-2 h-4 w-4" />
               {isLoading ? "Searching..." : "Search"}
@@ -110,43 +153,44 @@ const MasterSearch = () => {
                     <th className="px-3 py-2 font-medium">Date</th>
                     <th className="px-3 py-2 font-medium">Invoice No</th>
                     <th className="px-3 py-2 font-medium">Customer</th>
-                    <th className="px-3 py-2 font-medium">Product / Brand</th>
                     <th className="px-3 py-2 font-medium">Sales Exec</th>
-                    <th className="px-3 py-2 font-medium text-right">Value</th>
+                    <th className="px-3 py-2 font-medium text-right">Total Volume (Ltr)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading ? (
+                  {isLoading || scopeLoading ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                      <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
                         Searching invoices...
                       </td>
                     </tr>
-                  ) : results.length === 0 ? (
+                  ) : headers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                      <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
                         Enter search criteria and click search to view results.
                       </td>
                     </tr>
                   ) : (
-                    results.map((row, idx) => (
-                      <tr key={`${row.invoice_no}-${idx}`} className="border-b border-border/40 last:border-b-0">
+                    headers.map((row) => (
+                      <tr
+                        key={row.invoice_no}
+                        className={`border-b border-border/40 last:border-b-0 cursor-pointer hover:bg-muted/40 ${
+                          selectedInvoice === row.invoice_no ? "bg-muted/40" : ""
+                        }`}
+                        onClick={() =>
+                          setSelectedInvoice((prev) =>
+                            prev === row.invoice_no ? null : row.invoice_no,
+                          )
+                        }
+                      >
                         <td className="px-3 py-2 align-top text-muted-foreground">{row.invoice_date}</td>
                         <td className="px-3 py-2 align-top font-medium">{row.invoice_no}</td>
                         <td className="px-3 py-2 align-top">{row.customer_name}</td>
                         <td className="px-3 py-2 align-top text-muted-foreground">
-                          {row.product_name || row.product_brand_name}
-                        </td>
-                        <td className="px-3 py-2 align-top text-muted-foreground">
                           {row.sales_exec_name || "-"}
                         </td>
                         <td className="px-3 py-2 align-top text-right font-medium">
-                          {row.total_value != null
-                            ? `₹${Number(row.total_value).toLocaleString("en-IN", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}`
-                            : "-"}
+                          {row.total_volume.toFixed(2)}
                         </td>
                       </tr>
                     ))
@@ -154,6 +198,33 @@ const MasterSearch = () => {
                 </tbody>
               </table>
             </div>
+
+            {selectedInvoice && details[selectedInvoice] && (
+              <div className="mt-4 border border-border/60 rounded-md overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-card border-b border-border">
+                    <tr className="text-left">
+                      <th className="px-3 py-2 font-medium">Product</th>
+                      <th className="px-3 py-2 font-medium">Brand</th>
+                      <th className="px-3 py-2 font-medium text-right">Volume (Ltr)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {details[selectedInvoice].map((d, idx) => (
+                      <tr key={idx} className="border-b border-border/40 last:border-b-0">
+                        <td className="px-3 py-2 align-top">{d.product_name || "-"}</td>
+                        <td className="px-3 py-2 align-top text-muted-foreground">
+                          {d.product_brand_name || "-"}
+                        </td>
+                        <td className="px-3 py-2 align-top text-right font-medium">
+                          {d.product_volume != null ? Number(d.product_volume).toFixed(2) : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

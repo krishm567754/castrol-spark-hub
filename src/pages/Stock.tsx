@@ -19,7 +19,7 @@ const Stock = () => {
       try {
         const { data, error } = await supabase
           .from("stock")
-          .select("id, product_code, product_name, pack_size, brand, quantity, created_at, updated_at")
+          .select("*")
           .order("product_name", { ascending: true });
 
         if (error) throw error;
@@ -40,11 +40,7 @@ const Stock = () => {
       items.filter((item) => {
         if (!search) return true;
         const term = search.toLowerCase();
-        return (
-          item.product_name.toLowerCase().includes(term) ||
-          item.product_code.toLowerCase().includes(term) ||
-          (item.brand || "").toLowerCase().includes(term)
-        );
+        return item.product_name.toLowerCase().includes(term);
       }),
     [items, search]
   );
@@ -58,7 +54,7 @@ const Stock = () => {
           <CardHeader>
             <CardTitle>Current Stock</CardTitle>
             <CardDescription>
-              Search stock items by name, code or brand. Upload stock data in Admin Data.
+              Search stock items by name. Upload stock data in Admin Data.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -68,7 +64,7 @@ const Stock = () => {
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="stock-search"
-                  placeholder="Search by item name, code or brand..."
+                  placeholder="Search by item name..."
                   className="pl-9"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -80,43 +76,31 @@ const Stock = () => {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-card border-b border-border">
                   <tr className="text-left">
-                    <th className="px-3 py-2 font-medium">Code</th>
-                    <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">Pack</th>
-                    <th className="px-3 py-2 font-medium">Brand</th>
-                    <th className="px-3 py-2 font-medium text-right">Qty</th>
+                    <th className="px-3 py-2 font-medium">Product Name</th>
+                    <th className="px-3 py-2 font-medium text-right">Quantity (Ltr)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
+                      <td colSpan={2} className="px-3 py-8 text-center text-muted-foreground">
                         Loading stock...
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
+                      <td colSpan={2} className="px-3 py-8 text-center text-muted-foreground">
                         No stock data found. Upload stock in Admin Data.
                       </td>
                     </tr>
                   ) : (
                     filtered.map((item) => (
                       <tr key={item.id} className="border-b border-border/40 last:border-b-0">
-                        <td className="px-3 py-2 align-top whitespace-nowrap text-muted-foreground">
-                          {item.product_code}
-                        </td>
                         <td className="px-3 py-2 align-top">
                           <div className="font-medium">{item.product_name}</div>
                         </td>
-                        <td className="px-3 py-2 align-top text-muted-foreground">
-                          {item.pack_size}
-                        </td>
-                        <td className="px-3 py-2 align-top text-muted-foreground">
-                          {item.brand}
-                        </td>
                         <td className="px-3 py-2 align-top text-right font-medium">
-                          {Number(item.quantity ?? 0).toLocaleString()}
+                          {Number(item.quantity ?? 0).toFixed(2)}
                         </td>
                       </tr>
                     ))

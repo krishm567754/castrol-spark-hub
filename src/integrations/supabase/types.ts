@@ -275,6 +275,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_page_access: {
+        Row: {
+          id: string
+          page_key: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          page_key: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          page_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
