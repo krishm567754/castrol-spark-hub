@@ -8,7 +8,17 @@ import { Upload, FileSpreadsheet, Loader2 } from "lucide-react";
 import { useExcelUpload } from "@/hooks/useExcelUpload";
 
 const AdminData = () => {
-  const { isUploading, uploadInvoices, uploadCustomers, uploadStock, uploadOpenOrders } = useExcelUpload();
+  const {
+    isUploading,
+    uploadInvoices,
+    uploadCustomers,
+    uploadStock,
+    uploadOpenOrders,
+    clearInvoices,
+    clearCustomers,
+    clearStock,
+    clearOpenOrders,
+  } = useExcelUpload();
   const [uploadCounts, setUploadCounts] = useState<Record<string, number>>({});
 
   const handleFileUpload = async (
