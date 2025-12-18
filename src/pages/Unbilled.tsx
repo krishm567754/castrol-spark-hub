@@ -197,18 +197,21 @@ const Unbilled = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {(detailBySe[selectedSe] || []).map((c) => (
-                      <tr
-                        key={c.code}
-                        className="border-b border-border/40 last:border-b-0"
-                      >
-                        <td className="px-3 py-2 align-top text-muted-foreground">{c.code}</td>
-                        <td className="px-3 py-2 align-top">{c.name}</td>
-                        <td className="px-3 py-2 align-top text-right font-medium">
-                          {c.volume.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
+                    {(detailBySe[selectedSe] || [])
+                      .slice()
+                      .sort((a, b) => b.volume - a.volume)
+                      .map((c) => (
+                        <tr
+                          key={c.code}
+                          className="border-b border-border/40 last:border-b-0"
+                        >
+                          <td className="px-3 py-2 align-top text-muted-foreground">{c.code}</td>
+                          <td className="px-3 py-2 align-top">{c.name}</td>
+                          <td className="px-3 py-2 align-top text-right font-medium">
+                            {c.volume.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
