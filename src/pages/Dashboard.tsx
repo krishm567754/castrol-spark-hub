@@ -84,9 +84,6 @@ const Dashboard = () => {
   const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // 0 = current, -1 = prev, -2 = 2 months ago
   const [isLoading, setIsLoading] = useState(false);
   const [totalVolume, setTotalVolume] = useState(0);
-  const [totalInvoices, setTotalInvoices] = useState(0);
-  const [openOrders3d, setOpenOrders3d] = useState(0);
-  const [stockSkus, setStockSkus] = useState(0);
   const [reports, setReports] = useState<Record<string, ReportTable>>({});
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [reportTitle, setReportTitle] = useState<string>("");
@@ -133,7 +130,6 @@ const Dashboard = () => {
         }, 0);
 
         setTotalVolume(volume);
-        setTotalInvoices(invoiceData?.length || 0);
 
         // Build detailed KPI reports based on previous tool logic
         const reportsMap: Record<string, ReportTable> = {};
@@ -352,35 +348,9 @@ const Dashboard = () => {
         };
 
         setReports(reportsMap);
-
-        // Open orders in last 3 days
-        const today = new Date();
-        const threeDaysAgo = new Date(today);
-        threeDaysAgo.setDate(today.getDate() - 3);
-
-        const { data: ordersData, error: ordersError } = await supabase
-          .from("open_orders")
-          .select("id, order_date")
-          .gte("order_date", threeDaysAgo.toISOString().split("T")[0]);
-
-        if (ordersError) throw ordersError;
-        setOpenOrders3d(ordersData?.length || 0);
-
-        // Stock SKUs (number of products)
-        const { data: stockData, error: stockError } = await supabase
-          .from("stock")
-          .select("product_code");
-
-        if (stockError) throw stockError;
-
-        const uniqueSkus = new Set((stockData || []).map((row: any) => row.product_code)).size;
-        setStockSkus(uniqueSkus);
       } catch (error) {
         console.error("Error loading dashboard KPIs", error);
         setTotalVolume(0);
-        setTotalInvoices(0);
-        setOpenOrders3d(0);
-        setStockSkus(0);
         setReports({});
       } finally {
         setIsLoading(false);
@@ -423,7 +393,7 @@ const Dashboard = () => {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Volume (Ltrs)</CardTitle>
@@ -434,39 +404,6 @@ const Dashboard = () => {
               <p className="text-xs text-muted-foreground">Selected month</p>
             </CardContent>
           </Card>
-
-          <Card className="border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
-              <FileText className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{isLoading ? "-" : totalInvoices.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Invoices in selected month</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Open Orders (3d)</CardTitle>
-              <BarChart3 className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{isLoading ? "-" : openOrders3d.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Last 3 days</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Stock SKUs</CardTitle>
-              <Package className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{isLoading ? "-" : stockSkus.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Items in stock</p>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Report Buttons */}
@@ -475,21 +412,148 @@ const Dashboard = () => {
             <CardTitle>Reports</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline">Volume by Sales Exec</Button>
-              <Button variant="outline">Weekly Sales Volume</Button>
-              <Button variant="outline">'Activ' Customer Count</Button>
-              <Button variant="outline">'Power1' Customer Count</Button>
-              <Button variant="outline">'Magnatec' Customer Count</Button>
-              <Button variant="outline">'CRB Turbomax' Count</Button>
-              <Button variant="outline">High-Volume Customers</Button>
-              <Button variant="outline">Autocare Count</Button>
-              <Button variant="outline">Volume by Brand</Button>
-              <Button variant="outline">Top 10 Customers</Button>
+            <div className="flex flex-wrap gap-2 mb-6">
+              <Button
+                variant={selectedReport === "volumeBySE" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("volumeBySE");
+                  setReportTitle("Volume by Sales Exec");
+                }}
+              >
+                Volume by Sales Exec
+              </Button>
+              <Button
+                variant={selectedReport === "activCount" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("activCount");
+                  setReportTitle("'Activ' Customer Count");
+                }}
+              >
+                'Activ' Customer Count
+              </Button>
+              <Button
+                variant={selectedReport === "power1Count" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("power1Count");
+                  setReportTitle("'Power1' Customer Count");
+                }}
+              >
+                'Power1' Customer Count
+              </Button>
+              <Button
+                variant={selectedReport === "magnatecCount" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("magnatecCount");
+                  setReportTitle("'Magnatec' Customer Count");
+                }}
+              >
+                'Magnatec' Customer Count
+              </Button>
+              <Button
+                variant={selectedReport === "crbCount" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("crbCount");
+                  setReportTitle("'CRB Turbomax' Count");
+                }}
+              >
+                'CRB Turbomax' Count
+              </Button>
+              <Button
+                variant={selectedReport === "highVolCount" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("highVolCount");
+                  setReportTitle("High-Volume Customers (>= 9L)");
+                }}
+              >
+                High-Volume Customers
+              </Button>
+              <Button
+                variant={selectedReport === "autocareCount" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("autocareCount");
+                  setReportTitle("Autocare Customers (>= 5L)");
+                }}
+              >
+                Autocare Count
+              </Button>
+              <Button
+                variant={selectedReport === "volByBrand" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("volByBrand");
+                  setReportTitle("Volume by Brand");
+                }}
+              >
+                Volume by Brand
+              </Button>
+              <Button
+                variant={selectedReport === "topCustomers" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("topCustomers");
+                  setReportTitle("Top 10 Customers");
+                }}
+              >
+                Top 10 Customers
+              </Button>
+              <Button
+                variant={selectedReport === "unbilled" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("unbilled");
+                  setReportTitle("Unbilled Customers (< 9L)");
+                }}
+              >
+                Unbilled Customers
+              </Button>
             </div>
-            <div className="mt-6 p-8 border border-dashed border-border rounded-lg text-center text-muted-foreground">
-              Upload Excel files in Admin Data to populate reports, then select a report to view details.
-            </div>
+
+            {selectedReport && reports[selectedReport] && reports[selectedReport].rows.length > 0 ? (
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold">{reportTitle}</h2>
+                <div className="overflow-x-auto rounded-md border border-border/60">
+                  <table className="w-full text-sm">
+                    <thead className="bg-card border-b border-border">
+                      <tr className="text-left">
+                        {reports[selectedReport].headers.map((header) => (
+                          <th key={header} className="px-3 py-2 font-medium">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reports[selectedReport].rows.map((row, idx) => (
+                        <tr
+                          key={idx}
+                          className="border-b border-border/40 last:border-b-0 hover:bg-muted/40"
+                        >
+                          {row.map((cell, cIdx) => (
+                            <td
+                              key={cIdx}
+                              className="px-3 py-2 align-top text-sm text-muted-foreground"
+                            >
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 p-8 border border-dashed border-border rounded-lg text-center text-muted-foreground">
+                Upload Excel files in Admin Data to populate reports, then select a report to view details.
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
