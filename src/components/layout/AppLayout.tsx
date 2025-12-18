@@ -22,6 +22,7 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -29,6 +30,7 @@ interface AppLayoutProps {
 
 const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, loading, isAdmin, signOut } = useAuth();
+  const { loading: accessLoading, hasAllPages, allowedPages } = usePageAccess();
   const location = useLocation();
 
   if (loading) {
@@ -43,16 +45,20 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     return <Navigate to="/auth" replace />;
   }
 
-  const navLinks = [
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/unbilled", label: "Unbilled", icon: FileText },
-    { to: "/open-orders", label: "Open Orders", icon: ShoppingCart },
-    { to: "/last-7-days", label: "Last 7 Days", icon: Calendar },
-    { to: "/invoice-search", label: "Invoice Search", icon: Search },
-    { to: "/master-search", label: "Master Search", icon: SearchCode },
-    { to: "/stock", label: "Stock", icon: Package },
-    { to: "/customers", label: "Customers", icon: Users },
+  const allNavLinks = [
+    { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { key: "unbilled", to: "/unbilled", label: "Unbilled", icon: FileText },
+    { key: "open_orders", to: "/open-orders", label: "Open Orders", icon: ShoppingCart },
+    { key: "last_7_days", to: "/last-7-days", label: "Last 7 Days", icon: Calendar },
+    { key: "invoice_search", to: "/invoice-search", label: "Invoice Search", icon: Search },
+    { key: "master_search", to: "/master-search", label: "Master Search", icon: SearchCode },
+    { key: "stock", to: "/stock", label: "Stock", icon: Package },
+    { key: "customers", to: "/customers", label: "Customers", icon: Users },
   ];
+
+  const visibleNavLinks = hasAllPages || isAdmin
+    ? allNavLinks
+    : allNavLinks.filter((link) => allowedPages.includes(link.key));
 
   const adminLinks = isAdmin
     ? [
@@ -64,7 +70,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   const NavContent = () => (
     <>
       <div className="space-y-1">
-        {navLinks.map((link) => {
+        {visibleNavLinks.map((link) => {
           const Icon = link.icon;
           const isActive = location.pathname === link.to;
           return (
@@ -72,6 +78,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
               <Button
                 variant={isActive ? "secondary" : "ghost"}
                 className="w-full justify-start"
+                disabled={accessLoading}
               >
                 <Icon className="mr-2 h-4 w-4" />
                 {link.label}

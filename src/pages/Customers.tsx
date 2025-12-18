@@ -122,12 +122,12 @@ const Customers = () => {
               open={!!selectedCustomer}
               onOpenChange={(open) => !open && setSelectedCustomer(null)}
             >
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[80vh] overflow-hidden">
                 <DialogHeader>
                   <DialogTitle>Customer Details</DialogTitle>
                 </DialogHeader>
                 {selectedCustomer && (
-                  <div className="space-y-2 text-sm">
+                  <div className="space-y-2 text-sm max-h-[60vh] overflow-y-auto">
                     <div className="font-semibold">
                       {selectedCustomer.customer_name} ({selectedCustomer.customer_code})
                     </div>

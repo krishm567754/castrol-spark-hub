@@ -191,7 +191,7 @@ const InvoiceSearch = () => {
             </div>
 
             <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
                 <DialogHeader>
                   <div className="flex items-center justify-between gap-4">
                     <DialogTitle>Invoice Details</DialogTitle>
@@ -205,7 +205,7 @@ const InvoiceSearch = () => {
                   </div>
                 </DialogHeader>
                 {selectedInvoice && details[selectedInvoice] && (
-                  <div className="mt-2 border border-border/60 rounded-md overflow-hidden">
+                  <div className="mt-2 border border-border/60 rounded-md max-h-[60vh] overflow-y-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-card border-b border-border">
                         <tr className="text-left">
