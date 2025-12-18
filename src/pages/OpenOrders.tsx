@@ -12,14 +12,9 @@ const OpenOrders = () => {
     const loadOrders = async () => {
       setIsLoading(true);
       try {
-        const today = new Date();
-        const threeDaysAgo = new Date(today);
-        threeDaysAgo.setDate(today.getDate() - 3);
-
         const { data, error } = await supabase
           .from("open_orders")
           .select("*")
-          .gte("order_date", threeDaysAgo.toISOString().split("T")[0])
           .order("order_date", { ascending: false });
 
         if (error) throw error;

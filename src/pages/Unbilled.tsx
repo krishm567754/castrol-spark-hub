@@ -2,14 +2,23 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { X } from "lucide-react";
 
 interface UnbilledRow {
   se: string;
   count: number;
 }
 
+interface UnbilledDetailRow {
+  code: string;
+  volume: number;
+}
+
 const Unbilled = () => {
   const [rows, setRows] = useState<UnbilledRow[]>([]);
+  const [detailBySe, setDetailBySe] = useState<Record<string, UnbilledDetailRow[]>>({});
+  const [selectedSe, setSelectedSe] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -93,8 +102,12 @@ const Unbilled = () => {
           .filter((c) => c.code && c.volume < 9);
 
         const summary: Record<string, number> = {};
+        const detailMap: Record<string, UnbilledDetailRow[]> = {};
         fullUnbilled.forEach((c) => {
-          if (c.se) summary[c.se] = (summary[c.se] || 0) + 1;
+          if (!c.se) return;
+          summary[c.se] = (summary[c.se] || 0) + 1;
+          if (!detailMap[c.se]) detailMap[c.se] = [];
+          detailMap[c.se].push({ code: c.code, volume: c.volume });
         });
 
         const rows: UnbilledRow[] = Object.entries(summary)
@@ -102,6 +115,7 @@ const Unbilled = () => {
           .sort((a, b) => b.count - a.count);
 
         setRows(rows);
+        setDetailBySe(detailMap);
       } catch (error) {
         console.error("Error loading unbilled customers", error);
         setRows([]);
@@ -147,7 +161,11 @@ const Unbilled = () => {
                     </tr>
                   ) : (
                     rows.map((row) => (
-                      <tr key={row.se} className="border-b border-border/40 last:border-b-0">
+                      <tr
+                        key={row.se}
+                        className="border-b border-border/40 last:border-b-0 cursor-pointer hover:bg-muted/40"
+                        onClick={() => setSelectedSe(row.se)}
+                      >
                         <td className="px-3 py-2 align-top">{row.se}</td>
                         <td className="px-3 py-2 align-top text-right font-medium">{row.count}</td>
                       </tr>

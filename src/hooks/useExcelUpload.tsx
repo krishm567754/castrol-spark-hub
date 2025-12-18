@@ -217,7 +217,21 @@ export const useExcelUpload = () => {
         })
         .filter((item) => item.product_name);
 
-      if (stock.length === 0) {
+      // Aggregate duplicate product codes/names to avoid unique key issues
+      const aggregated = Array.from(
+        stock.reduce((map, item) => {
+          const key = `${item.product_code}|${item.product_name}`;
+          const existing = map.get(key);
+          if (existing) {
+            existing.quantity = (existing.quantity || 0) + (item.quantity || 0);
+          } else {
+            map.set(key, { ...item });
+          }
+          return map;
+        }, new Map<string, { product_code: string; product_name: string; quantity: number | null; pack_size: string | null; brand: string | null }>() ).values()
+      );
+
+      if (aggregated.length === 0) {
         throw new Error(
           "No valid stock records found in the file. Please check that it has Product Description / Product Name and quantity columns like Qty(EA/Ltrs/Kg)."
         );
@@ -229,8 +243,8 @@ export const useExcelUpload = () => {
       const batchSize = 500;
       let totalInserted = 0;
 
-      for (let i = 0; i < stock.length; i += batchSize) {
-        const batch = stock.slice(i, i + batchSize);
+      for (let i = 0; i < aggregated.length; i += batchSize) {
+        const batch = aggregated.slice(i, i + batchSize);
         const { error } = await supabase.from("stock").insert(batch);
         if (error) {
           console.error("Batch insert error:", error);

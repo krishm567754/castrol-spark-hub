@@ -27,6 +27,17 @@ interface AddUserDialogProps {
   onSuccess: () => void;
 }
 
+const PAGE_OPTIONS = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "unbilled", label: "Unbilled" },
+  { key: "open_orders", label: "Open Orders" },
+  { key: "last_7_days", label: "Last 7 Days" },
+  { key: "invoice_search", label: "Invoice Search" },
+  { key: "master_search", label: "Master Search" },
+  { key: "stock", label: "Stock" },
+  { key: "customers", label: "Customers" },
+];
+
 export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogProps) => {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -35,6 +46,8 @@ export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogPr
   const [hasAllAccess, setHasAllAccess] = useState(false);
   const [selectedExecs, setSelectedExecs] = useState<string[]>([]);
   const [salesExecs, setSalesExecs] = useState<any[]>([]);
+  const [allPages, setAllPages] = useState(true);
+  const [selectedPages, setSelectedPages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -95,6 +108,20 @@ export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogPr
         }
       }
 
+      // Set page access (empty = all pages)
+      if (!allPages) {
+        const pageRecords = selectedPages.map((pageKey) => ({
+          user_id: authData.user.id,
+          page_key: pageKey,
+        }));
+        if (pageRecords.length > 0) {
+          const { error: pageError } = await supabase
+            .from("user_page_access")
+            .insert(pageRecords);
+          if (pageError) throw pageError;
+        }
+      }
+
       toast({
         title: "User Created",
         description: `Successfully created user ${username}`,
@@ -107,6 +134,8 @@ export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogPr
       setRole("user");
       setHasAllAccess(false);
       setSelectedExecs([]);
+      setAllPages(true);
+      setSelectedPages([]);
       
       onSuccess();
       onOpenChange(false);
@@ -208,6 +237,46 @@ export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogPr
                     />
                     <label htmlFor={exec.id} className="text-sm">
                       {exec.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <Label>Page Access</Label>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="all-pages"
+                checked={allPages}
+                onCheckedChange={(checked) => {
+                  setAllPages(checked as boolean);
+                  if (checked) setSelectedPages([]);
+                }}
+              />
+              <label htmlFor="all-pages" className="text-sm font-medium">
+                ALL Pages
+              </label>
+            </div>
+
+            {!allPages && (
+              <div className="border border-border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                {PAGE_OPTIONS.map((page) => (
+                  <div key={page.key} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={page.key}
+                      checked={selectedPages.includes(page.key)}
+                      onCheckedChange={() =>
+                        setSelectedPages((prev) =>
+                          prev.includes(page.key)
+                            ? prev.filter((p) => p !== page.key)
+                            : [...prev, page.key]
+                        )
+                      }
+                    />
+                    <label htmlFor={page.key} className="text-sm">
+                      {page.label}
                     </label>
                   </div>
                 ))}
