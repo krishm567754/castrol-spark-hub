@@ -58,8 +58,62 @@ export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogPr
   }, [open]);
 
   const loadSalesExecs = async () => {
-    const { data } = await supabase.from("sales_executives").select("*").order("name");
-    if (data) setSalesExecs(data);
+    // First load any existing sales executives
+    const { data: existingExecs, error: execError } = await supabase
+      .from("sales_executives")
+      .select("id, name");
+
+    if (execError) {
+      console.error("Failed to load sales executives", execError);
+      return;
+    }
+
+    const byName = new Map<string, { id: string; name: string }>();
+    (existingExecs || []).forEach((e: any) => {
+      byName.set(String(e.name).trim().toUpperCase(), e);
+    });
+
+    // Discover sales executives from invoice data
+    const { data: invoiceExecs, error: invError } = await supabase
+      .from("invoices")
+      .select("sales_exec_name")
+      .not("sales_exec_name", "is", null);
+
+    if (invError) {
+      console.error("Failed to load sales execs from invoices", invError);
+    }
+
+    const newExecNames: string[] = [];
+    (invoiceExecs || []).forEach((row: any) => {
+      const raw = String(row.sales_exec_name || "").trim();
+      if (!raw) return;
+      const key = raw.toUpperCase();
+      if (!byName.has(key)) {
+        byName.set(key, { id: "", name: raw });
+        newExecNames.push(raw);
+      }
+    });
+
+    // Insert any newly discovered execs so they can be reused elsewhere
+    if (newExecNames.length > 0) {
+      const { data: inserted, error: insertError } = await supabase
+        .from("sales_executives")
+        .insert(newExecNames.map((name) => ({ name })))
+        .select("id, name");
+
+      if (insertError) {
+        console.error("Failed to insert discovered sales executives", insertError);
+      } else if (inserted) {
+        inserted.forEach((e: any) => {
+          byName.set(String(e.name).trim().toUpperCase(), e);
+        });
+      }
+    }
+
+    const allExecs = Array.from(byName.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+    setSalesExecs(allExecs);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

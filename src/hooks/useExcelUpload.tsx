@@ -121,16 +121,34 @@ export const useExcelUpload = () => {
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
       const customers = jsonData
-        .map((row: any) => ({
-          customer_code: String(row["Customer Code"] || ""),
-          customer_name: String(row["Customer Name"] || ""),
-          sales_executive: String(row["Sales Executive"] || ""),
-          city: String(row["City"] || ""),
-          address: String(row["Address"] || ""),
-          phone: String(row["Phone"] || row["Mobile"] || ""),
-          gst: String(row["GST"] || row["GSTIN"] || ""),
-          category: String(row["Category"] || ""),
-        }))
+        .map((row: any) => {
+          const addressParts = [
+            row["Address Line 1"],
+            row["Address Line 2"],
+            row["Town Code"],
+            row["Pin"],
+            row["Address"],
+          ].filter((v) => v && String(v).trim() !== "");
+
+          return {
+            customer_code: String(row["Customer Code"] || ""),
+            customer_name: String(row["Customer Name"] || ""),
+            sales_executive: String(row["Sales Executive"] || ""),
+            city: String(row["Town Code"] || row["City"] || ""),
+            address: addressParts.join(", "),
+            phone: String(
+              row["Mobile No."] ||
+                row["Mobile No"] ||
+                row["Mobile"] ||
+                row["Phone No."] ||
+                row["Phone No"] ||
+                row["Phone"] ||
+                ""
+            ),
+            gst: String(row["GST"] || row["GSTIN"] || ""),
+            category: String(row["Category"] || ""),
+          };
+        })
         .filter((customer) => customer.customer_code && customer.customer_name);
 
       if (customers.length === 0) {
