@@ -36,6 +36,7 @@ const PAGE_OPTIONS = [
   { key: "master_search", label: "Master Search" },
   { key: "stock", label: "Stock" },
   { key: "customers", label: "Customers" },
+  { key: "wbc_report", label: "WBC Report" },
 ];
 
 export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogProps) => {
