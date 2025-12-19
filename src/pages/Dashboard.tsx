@@ -181,39 +181,54 @@ const Dashboard = () => {
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
-        // Power1 customer count (exact product match)
-        const power1CustomerBySe: Record<string, Set<string>> = {};
+        // Power1 under-target customer count (< 5L per customer)
+        const power1VolByCustomer: Record<string, number> = {};
         invoices
           .filter((r: any) => POWER1_PRODUCTS_LIST.includes(getStr(r.product_name)))
           .forEach((r: any) => {
             const se = getStr(r.sales_exec_name || "");
             const cust = getStr(r.customer_code || r.customer_name);
             if (!se || !cust) return;
-            if (!power1CustomerBySe[se]) power1CustomerBySe[se] = new Set();
-            power1CustomerBySe[se].add(cust);
+            const key = `${se}|${cust}`;
+            power1VolByCustomer[key] = (power1VolByCustomer[key] || 0) + getNum(r.product_volume);
           });
+        const power1UnderTargetCounts: Record<string, number> = {};
+        Object.entries(power1VolByCustomer).forEach(([key, vol]) => {
+          if (vol < 5) {
+            const se = key.split("|")[0] || "";
+            if (se) power1UnderTargetCounts[se] = (power1UnderTargetCounts[se] || 0) + 1;
+          }
+        });
         reportsMap["power1Count"] = {
-          headers: ["Sales Executive Name", "Unique Customer Count"],
-          rows: Object.entries(power1CustomerBySe)
-            .map(([se, set]) => [se, (set as Set<string>).size])
+          headers: ["Sales Executive Name", "Customers < 5L"],
+          rows: Object.entries(power1UnderTargetCounts)
+            .map(([se, count]) => [se, count])
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
-        // Magnatec customer count
-        const magnatecCustomerBySe: Record<string, Set<string>> = {};
+        // Magnatec under-target customer count (< 5L per customer)
+        const magnatecVolByCustomer: Record<string, number> = {};
         invoices
           .filter((r: any) => isMagnatec(r.product_brand_name))
           .forEach((r: any) => {
             const se = getStr(r.sales_exec_name || "");
             const cust = getStr(r.customer_code || r.customer_name);
             if (!se || !cust) return;
-            if (!magnatecCustomerBySe[se]) magnatecCustomerBySe[se] = new Set();
-            magnatecCustomerBySe[se].add(cust);
+            const key = `${se}|${cust}`;
+            magnatecVolByCustomer[key] = (magnatecVolByCustomer[key] || 0) + getNum(r.product_volume);
           });
+        const magnatecUnderTargetCounts: Record<string, number> = {};
+        Object.entries(magnatecVolByCustomer).forEach(([key, vol]) => {
+          if (vol < 5) {
+            const se = key.split("|")[0] || "";
+            if (se)
+              magnatecUnderTargetCounts[se] = (magnatecUnderTargetCounts[se] || 0) + 1;
+          }
+        });
         reportsMap["magnatecCount"] = {
-          headers: ["Sales Executive Name", "Unique Customer Count"],
-          rows: Object.entries(magnatecCustomerBySe)
-            .map(([se, set]) => [se, (set as Set<string>).size])
+          headers: ["Sales Executive Name", "Customers < 5L"],
+          rows: Object.entries(magnatecUnderTargetCounts)
+            .map(([se, count]) => [se, count])
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
@@ -268,11 +283,12 @@ const Dashboard = () => {
             const custCode = getStr(r.customer_code);
             const custName = getStr(r.customer_name);
             const se = getStr(r.sales_exec_name);
-            if (!custCode) return;
-            if (!autocareVolByCustomer[custCode]) {
-              autocareVolByCustomer[custCode] = { se, name: custName, vol: 0 };
+            if (!custCode && !custName) return;
+            const key = custCode || custName;
+            if (!autocareVolByCustomer[key]) {
+              autocareVolByCustomer[key] = { se, name: custName || custCode, vol: 0 };
             }
-            autocareVolByCustomer[custCode].vol += getNum(r.product_volume);
+            autocareVolByCustomer[key].vol += getNum(r.product_volume);
           });
         const autocareCounts: Record<string, number> = {};
         Object.values(autocareVolByCustomer)
@@ -287,17 +303,37 @@ const Dashboard = () => {
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
-        // Volume by brand
+        // Volume by brand and weekly sales
         const volByBrand: Record<string, number> = {};
+        const volByWeek: Record<string, number> = {};
         invoices.forEach((r: any) => {
           const brand = getStr(r.product_brand_name || "Not Classified");
           volByBrand[brand] = (volByBrand[brand] || 0) + getNum(r.product_volume);
+
+          const d = new Date(r.invoice_date);
+          if (!isNaN(d.getTime())) {
+            const weekday = d.getDay();
+            const diffToMonday = (weekday + 6) % 7; // 0 for Monday
+            const monday = new Date(d);
+            monday.setDate(d.getDate() - diffToMonday);
+            const label = `Week of ${monday.toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+            })}`;
+            volByWeek[label] = (volByWeek[label] || 0) + getNum(r.product_volume);
+          }
         });
         reportsMap["volByBrand"] = {
           headers: ["Brand Name", "Total Volume (Ltr)"],
           rows: Object.entries(volByBrand)
-            .map(([name, vol]) => [name, Number(vol.toFixed(2))])
+            .map(([name, vol]) => [name, Number((vol as number).toFixed(2))])
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
+        };
+        reportsMap["weeklySales"] = {
+          headers: ["Week", "Total Volume (Ltr)"],
+          rows: Object.entries(volByWeek)
+            .map(([week, vol]) => [week, Number((vol as number).toFixed(2))])
+            .sort((a, b) => (a[0] as string).localeCompare(b[0] as string)),
         };
 
         // Top 10 customers by value
@@ -464,20 +500,20 @@ const Dashboard = () => {
                 size="sm"
                 onClick={() => {
                   setSelectedReport("power1Count");
-                  setReportTitle("'Power1' Customer Count");
+                  setReportTitle("'Power1' Customers < 5L");
                 }}
               >
-                'Power1' Customer Count
+                Power1 &lt; 5L
               </Button>
               <Button
                 variant={selectedReport === "magnatecCount" ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
                   setSelectedReport("magnatecCount");
-                  setReportTitle("'Magnatec' Customer Count");
+                  setReportTitle("'Magnatec' Customers < 5L");
                 }}
               >
-                'Magnatec' Customer Count
+                Magnatec &lt; 5L
               </Button>
               <Button
                 variant={selectedReport === "crbCount" ? "default" : "outline"}
@@ -508,6 +544,16 @@ const Dashboard = () => {
                 }}
               >
                 Autocare Count
+              </Button>
+              <Button
+                variant={selectedReport === "weeklySales" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSelectedReport("weeklySales");
+                  setReportTitle("Weekly Sales Volume");
+                }}
+              >
+                Weekly Sales
               </Button>
               <Button
                 variant={selectedReport === "volByBrand" ? "default" : "outline"}
