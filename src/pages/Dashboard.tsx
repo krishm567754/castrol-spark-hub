@@ -140,7 +140,7 @@ const Dashboard = () => {
           invoiceQuery = invoiceQuery.in("sales_exec_name", allowedSalesExecNames);
         }
 
-        const { data: invoiceData, error: invoicesError } = await invoiceQuery;
+         const { data: invoiceData, error: invoicesError } = await invoiceQuery.range(0, 9999);
         if (invoicesError) throw invoicesError;
 
         const volume = (invoiceData || []).reduce((sum, row: any) => {
@@ -701,11 +701,11 @@ const Dashboard = () => {
                                     power1VolByCustomer[key].vol += getNum(r.product_volume);
                                   });
                                 Object.values(power1VolByCustomer).forEach((entry) => {
-                                  if (entry.vol >= 5) {
+                                  if (entry.vol > 0) {
                                     pushItem(entry.name, entry.vol);
                                   }
                                 });
-                                setDrilldownTitle(`'Power1' customers (≥ 5L) for ${se}`);
+                                setDrilldownTitle(`'Power1' customers (all, KPI counts ≥ 5L) for ${se}`);
                                 break;
                               }
                               case "magnatecCount": {
@@ -727,11 +727,11 @@ const Dashboard = () => {
                                     magnatecVolByCustomer[key].vol += getNum(r.product_volume);
                                   });
                                 Object.values(magnatecVolByCustomer).forEach((entry) => {
-                                  if (entry.vol >= 5) {
+                                  if (entry.vol > 0) {
                                     pushItem(entry.name, entry.vol);
                                   }
                                 });
-                                setDrilldownTitle(`'Magnatec' customers (≥ 5L) for ${se}`);
+                                setDrilldownTitle(`'Magnatec' customers (all, KPI counts ≥ 5L) for ${se}`);
                                 break;
                               }
                               case "crbCount": {
@@ -753,11 +753,11 @@ const Dashboard = () => {
                                     crbVolByCustomer[key].vol += getNum(r.product_volume);
                                   });
                                 Object.values(crbVolByCustomer).forEach((entry) => {
-                                  if (entry.vol >= 5) {
+                                  if (entry.vol > 0) {
                                     pushItem(entry.name, entry.vol);
                                   }
                                 });
-                                setDrilldownTitle(`'CRB Turbomax' customers (≥ 5L) for ${se}`);
+                                setDrilldownTitle(`'CRB Turbomax' customers (all, KPI counts ≥ 5L) for ${se}`);
                                 break;
                               }
                               case "highVolCount": {
@@ -805,12 +805,12 @@ const Dashboard = () => {
                                     autocareVolByCustomer[key].vol += getNum(r.product_volume);
                                   });
                                 Object.values(autocareVolByCustomer)
-                                  .filter((entry) => entry.vol >= 5)
+                                  .filter((entry) => entry.vol > 0)
                                   .forEach((entry) => {
                                     pushItem(entry.name, entry.vol);
                                   });
                                 setDrilldownTitle(
-                                  `Autocare customers (>= 5L) for ${se}`
+                                  `Autocare customers (all, KPI counts ≥ 5L) for ${se}`
                                 );
                                 break;
                               }
