@@ -134,12 +134,16 @@ export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogPr
         },
       });
 
-      if (error) {
-        throw error;
-      }
+      const backendMessage =
+        (data && (data as any).error) ||
+        (error as any)?.context?.error?.message ||
+        (error as any)?.message;
 
-      if (data && (data as any).error) {
-        throw new Error((data as any).error);
+      if (error || backendMessage) {
+        throw new Error(
+          backendMessage ||
+            "Something went wrong while creating the user. Please try again."
+        );
       }
 
       toast({
