@@ -16,6 +16,7 @@ import {
   Database,
   UserCog,
   Menu,
+  BarChart3,
 } from "lucide-react";
 import {
   Sheet,
@@ -65,6 +66,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     ? [
         { to: "/admin-data", label: "Admin Data", icon: Database },
         { to: "/admin-users", label: "Admin Users", icon: UserCog },
+        { to: "/admin-kpi", label: "KPI Builder", icon: BarChart3 },
       ]
     : [];
 

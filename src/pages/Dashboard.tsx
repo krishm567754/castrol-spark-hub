@@ -290,7 +290,7 @@ const Dashboard = () => {
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
-        // Autocare count (>=5L per customer)
+        // Autocare count (>=5L per customer, per Sales Exec)
         const autocareVolByCustomer: Record<string, { se: string; name: string; vol: number }> = {};
         kpiInvoices
           .filter((r: any) => isAutocare(r.product_brand_name))
@@ -298,8 +298,8 @@ const Dashboard = () => {
             const custCode = getStr(r.customer_code);
             const custName = getStr(r.customer_name);
             const se = getStr(r.sales_exec_name);
-            if (!custCode && !custName) return;
-            const key = custCode || custName;
+            if (!se || (!custCode && !custName)) return;
+            const key = `${se}|${custCode || custName}`;
             if (!autocareVolByCustomer[key]) {
               autocareVolByCustomer[key] = { se, name: custName || custCode, vol: 0 };
             }
