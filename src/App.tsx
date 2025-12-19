@@ -15,6 +15,7 @@ import Stock from "./pages/Stock";
 import Customers from "./pages/Customers";
 import AdminData from "./pages/AdminData";
 import AdminUsers from "./pages/AdminUsers";
+import WBCReport from "./pages/WBCReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/master-search" element={<MasterSearch />} />
           <Route path="/stock" element={<Stock />} />
           <Route path="/customers" element={<Customers />} />
+          <Route path="/wbc-report" element={<WBCReport />} />
           <Route path="/admin-data" element={<AdminData />} />
           <Route path="/admin-users" element={<AdminUsers />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

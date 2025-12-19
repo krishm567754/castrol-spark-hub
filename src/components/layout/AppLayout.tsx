@@ -54,6 +54,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     { key: "master_search", to: "/master-search", label: "Master Search", icon: SearchCode },
     { key: "stock", to: "/stock", label: "Stock", icon: Package },
     { key: "customers", to: "/customers", label: "Customers", icon: Users },
+    { key: "wbc_report", to: "/wbc-report", label: "WBC Report", icon: FileText },
   ];
 
   const visibleNavLinks = hasAllPages || isAdmin

@@ -671,40 +671,54 @@ const Dashboard = () => {
                                 setDrilldownTitle(`'Activ' customers for ${se}`);
                                 break;
                               case "power1Count": {
-                                const power1VolByCustomer: Record<string, number> = {};
+                                const power1VolByCustomer: Record<string, { name: string; vol: number }> = {};
                                 rawInvoices
                                   .filter((r: any) =>
                                     POWER1_PRODUCTS_LIST.includes(getStr(r.product_name))
                                   )
                                   .forEach((r: any) => {
                                     if (getStr(r.sales_exec_name) !== se) return;
-                                    const cust = getStr(r.customer_code || r.customer_name);
-                                    if (!cust) return;
-                                    power1VolByCustomer[cust] =
-                                      (power1VolByCustomer[cust] || 0) + getNum(r.product_volume);
+                                    const custCode = getStr(r.customer_code);
+                                    const custName = getStr(r.customer_name);
+                                    if (!custCode && !custName) return;
+                                    const key = custCode || custName;
+                                    if (!power1VolByCustomer[key]) {
+                                      power1VolByCustomer[key] = {
+                                        name: custName || custCode,
+                                        vol: 0,
+                                      };
+                                    }
+                                    power1VolByCustomer[key].vol += getNum(r.product_volume);
                                   });
-                                Object.entries(power1VolByCustomer).forEach(([cust, vol]) => {
-                                  if (vol > 0 && vol < 5) {
-                                    pushItem(cust, vol);
+                                Object.values(power1VolByCustomer).forEach((entry) => {
+                                  if (entry.vol > 0 && entry.vol < 5) {
+                                    pushItem(entry.name, entry.vol);
                                   }
                                 });
                                 setDrilldownTitle(`'Power1' customers (< 5L) for ${se}`);
                                 break;
                               }
                               case "magnatecCount": {
-                                const magnatecVolByCustomer: Record<string, number> = {};
+                                const magnatecVolByCustomer: Record<string, { name: string; vol: number }> = {};
                                 rawInvoices
                                   .filter((r: any) => isMagnatec(r.product_brand_name))
                                   .forEach((r: any) => {
                                     if (getStr(r.sales_exec_name) !== se) return;
-                                    const cust = getStr(r.customer_code || r.customer_name);
-                                    if (!cust) return;
-                                    magnatecVolByCustomer[cust] =
-                                      (magnatecVolByCustomer[cust] || 0) + getNum(r.product_volume);
+                                    const custCode = getStr(r.customer_code);
+                                    const custName = getStr(r.customer_name);
+                                    if (!custCode && !custName) return;
+                                    const key = custCode || custName;
+                                    if (!magnatecVolByCustomer[key]) {
+                                      magnatecVolByCustomer[key] = {
+                                        name: custName || custCode,
+                                        vol: 0,
+                                      };
+                                    }
+                                    magnatecVolByCustomer[key].vol += getNum(r.product_volume);
                                   });
-                                Object.entries(magnatecVolByCustomer).forEach(([cust, vol]) => {
-                                  if (vol > 0 && vol < 5) {
-                                    pushItem(cust, vol);
+                                Object.values(magnatecVolByCustomer).forEach((entry) => {
+                                  if (entry.vol > 0 && entry.vol < 5) {
+                                    pushItem(entry.name, entry.vol);
                                   }
                                 });
                                 setDrilldownTitle(`'Magnatec' customers (< 5L) for ${se}`);
