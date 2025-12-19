@@ -8,21 +8,31 @@ import { Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useSalesExecScope } from "@/hooks/useSalesExecScope";
 
 const Customers = () => {
   const [nameOrCode, setNameOrCode] = useState("");
   const [city, setCity] = useState("");
   const [customers, setCustomers] = useState<Tables<"customers">[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { loading: scopeLoading, hasAllAccess, allowedSalesExecNames } = useSalesExecScope();
 
   useEffect(() => {
+    if (scopeLoading) return;
+
     const loadCustomers = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from("customers")
           .select("*")
           .order("customer_name", { ascending: true });
+
+        if (!hasAllAccess && allowedSalesExecNames.length > 0) {
+          query = query.in("sales_executive", allowedSalesExecNames);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         setCustomers(data || []);
@@ -35,7 +45,7 @@ const Customers = () => {
     };
 
     loadCustomers();
-  }, []);
+  }, [scopeLoading, hasAllAccess, allowedSalesExecNames]);
 
   const filtered = useMemo(
     () =>

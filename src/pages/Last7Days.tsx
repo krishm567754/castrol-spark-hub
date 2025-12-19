@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { X } from "lucide-react";
+import { useSalesExecScope } from "@/hooks/useSalesExecScope";
 
 interface Last7HeaderRow {
   invoice_no: string;
@@ -25,8 +26,11 @@ const Last7Days = () => {
   const [details, setDetails] = useState<Record<string, Last7DetailRow[]>>({});
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { loading: scopeLoading, hasAllAccess, allowedSalesExecNames } = useSalesExecScope();
 
   useEffect(() => {
+    if (scopeLoading) return;
+
     const loadInvoices = async () => {
       setIsLoading(true);
       try {
@@ -34,13 +38,19 @@ const Last7Days = () => {
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
 
-        const { data, error } = await supabase
+        let query = supabase
           .from("invoices")
           .select(
             "invoice_no, invoice_date, customer_name, sales_exec_name, product_name, product_brand_name, product_volume"
           )
           .gte("invoice_date", sevenDaysAgo.toISOString().split("T")[0])
           .order("invoice_date", { ascending: false });
+
+        if (!hasAllAccess && allowedSalesExecNames.length > 0) {
+          query = query.in("sales_exec_name", allowedSalesExecNames);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -81,7 +91,7 @@ const Last7Days = () => {
     };
 
     loadInvoices();
-  }, []);
+  }, [scopeLoading, hasAllAccess, allowedSalesExecNames]);
 
   return (
     <AppLayout>
