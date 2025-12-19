@@ -340,6 +340,39 @@ export type Database = {
           },
         ]
       }
+      wbc_agreements: {
+        Row: {
+          agreement_end_date: string
+          agreement_start_date: string
+          created_at: string
+          customer_code: string
+          customer_name: string | null
+          id: string
+          target_volume: number
+          updated_at: string
+        }
+        Insert: {
+          agreement_end_date: string
+          agreement_start_date: string
+          created_at?: string
+          customer_code: string
+          customer_name?: string | null
+          id?: string
+          target_volume: number
+          updated_at?: string
+        }
+        Update: {
+          agreement_end_date?: string
+          agreement_start_date?: string
+          created_at?: string
+          customer_code?: string
+          customer_name?: string | null
+          id?: string
+          target_volume?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
