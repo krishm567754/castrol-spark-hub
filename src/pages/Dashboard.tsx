@@ -133,7 +133,6 @@ const Dashboard = () => {
           .select(
             "invoice_date, invoice_no, customer_code, customer_name, sales_exec_name, master_brand_name, product_brand_name, product_name, product_volume, total_value"
           )
-          .eq("is_current_year", true)
           .gte("invoice_date", start)
           .lt("invoice_date", end);
 
@@ -190,7 +189,7 @@ const Dashboard = () => {
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
-        // Power1 under-target customer count (< 5L per customer)
+        // Power1 customer count (>= 5L per customer)
         const power1VolByCustomer: Record<string, number> = {};
         kpiInvoices
           .filter((r: any) => POWER1_PRODUCTS_LIST.includes(getStr(r.product_name)))
@@ -201,21 +200,21 @@ const Dashboard = () => {
             const key = `${se}|${cust}`;
             power1VolByCustomer[key] = (power1VolByCustomer[key] || 0) + getNum(r.product_volume);
           });
-        const power1UnderTargetCounts: Record<string, number> = {};
+        const power1QualifiedCounts: Record<string, number> = {};
         Object.entries(power1VolByCustomer).forEach(([key, vol]) => {
-          if (vol < 5) {
+          if (vol >= 5) {
             const se = key.split("|")[0] || "";
-            if (se) power1UnderTargetCounts[se] = (power1UnderTargetCounts[se] || 0) + 1;
+            if (se) power1QualifiedCounts[se] = (power1QualifiedCounts[se] || 0) + 1;
           }
         });
         reportsMap["power1Count"] = {
-          headers: ["Sales Executive Name", "Customers < 5L"],
-          rows: Object.entries(power1UnderTargetCounts)
+          headers: ["Sales Executive Name", "Customers ≥ 5L"],
+          rows: Object.entries(power1QualifiedCounts)
             .map(([se, count]) => [se, count])
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
-        // Magnatec under-target customer count (< 5L per customer)
+        // Magnatec customer count (>= 5L per customer)
         const magnatecVolByCustomer: Record<string, number> = {};
         kpiInvoices
           .filter((r: any) => isMagnatec(r.product_brand_name))
@@ -226,36 +225,43 @@ const Dashboard = () => {
             const key = `${se}|${cust}`;
             magnatecVolByCustomer[key] = (magnatecVolByCustomer[key] || 0) + getNum(r.product_volume);
           });
-        const magnatecUnderTargetCounts: Record<string, number> = {};
+        const magnatecQualifiedCounts: Record<string, number> = {};
         Object.entries(magnatecVolByCustomer).forEach(([key, vol]) => {
-          if (vol < 5) {
+          if (vol >= 5) {
             const se = key.split("|")[0] || "";
             if (se)
-              magnatecUnderTargetCounts[se] = (magnatecUnderTargetCounts[se] || 0) + 1;
+              magnatecQualifiedCounts[se] = (magnatecQualifiedCounts[se] || 0) + 1;
           }
         });
         reportsMap["magnatecCount"] = {
-          headers: ["Sales Executive Name", "Customers < 5L"],
-          rows: Object.entries(magnatecUnderTargetCounts)
+          headers: ["Sales Executive Name", "Customers ≥ 5L"],
+          rows: Object.entries(magnatecQualifiedCounts)
             .map(([se, count]) => [se, count])
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
-        // CRB Turbomax customer count
-        const crbCustomerBySe: Record<string, Set<string>> = {};
+        // CRB Turbomax customer count (>= 5L per customer)
+        const crbVolByCustomer: Record<string, number> = {};
         kpiInvoices
           .filter((r: any) => isCrb(r.product_brand_name))
           .forEach((r: any) => {
             const se = getStr(r.sales_exec_name || "");
             const cust = getStr(r.customer_code || r.customer_name);
             if (!se || !cust) return;
-            if (!crbCustomerBySe[se]) crbCustomerBySe[se] = new Set();
-            crbCustomerBySe[se].add(cust);
+            const key = `${se}|${cust}`;
+            crbVolByCustomer[key] = (crbVolByCustomer[key] || 0) + getNum(r.product_volume);
           });
+        const crbQualifiedCounts: Record<string, number> = {};
+        Object.entries(crbVolByCustomer).forEach(([key, vol]) => {
+          if (vol >= 5) {
+            const se = key.split("|")[0] || "";
+            if (se) crbQualifiedCounts[se] = (crbQualifiedCounts[se] || 0) + 1;
+          }
+        });
         reportsMap["crbCount"] = {
-          headers: ["Sales Executive Name", "Unique Customer Count"],
-          rows: Object.entries(crbCustomerBySe)
-            .map(([se, set]) => [se, (set as Set<string>).size])
+          headers: ["Sales Executive Name", "Customers ≥ 5L"],
+          rows: Object.entries(crbQualifiedCounts)
+            .map(([se, count]) => [se, count])
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
@@ -509,20 +515,20 @@ const Dashboard = () => {
                 size="sm"
                 onClick={() => {
                   setSelectedReport("power1Count");
-                  setReportTitle("'Power1' Customers < 5L");
+                  setReportTitle("'Power1' Customers ≥ 5L");
                 }}
               >
-                Power1 &lt; 5L
+                Power1 ≥ 5L
               </Button>
               <Button
                 variant={selectedReport === "magnatecCount" ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
                   setSelectedReport("magnatecCount");
-                  setReportTitle("'Magnatec' Customers < 5L");
+                  setReportTitle("'Magnatec' Customers ≥ 5L");
                 }}
               >
-                Magnatec &lt; 5L
+                Magnatec ≥ 5L
               </Button>
               <Button
                 variant={selectedReport === "crbCount" ? "default" : "outline"}
@@ -539,7 +545,7 @@ const Dashboard = () => {
                 size="sm"
                 onClick={() => {
                   setSelectedReport("highVolCount");
-                  setReportTitle("High-Volume Customers (>= 9L)");
+                  setReportTitle("High-Volume Core Customers (≥ 9L)");
                 }}
               >
                 High-Volume Customers
@@ -695,11 +701,11 @@ const Dashboard = () => {
                                     power1VolByCustomer[key].vol += getNum(r.product_volume);
                                   });
                                 Object.values(power1VolByCustomer).forEach((entry) => {
-                                  if (entry.vol > 0 && entry.vol < 5) {
+                                  if (entry.vol >= 5) {
                                     pushItem(entry.name, entry.vol);
                                   }
                                 });
-                                setDrilldownTitle(`'Power1' customers (< 5L) for ${se}`);
+                                setDrilldownTitle(`'Power1' customers (≥ 5L) for ${se}`);
                                 break;
                               }
                               case "magnatecCount": {
@@ -721,26 +727,39 @@ const Dashboard = () => {
                                     magnatecVolByCustomer[key].vol += getNum(r.product_volume);
                                   });
                                 Object.values(magnatecVolByCustomer).forEach((entry) => {
-                                  if (entry.vol > 0 && entry.vol < 5) {
+                                  if (entry.vol >= 5) {
                                     pushItem(entry.name, entry.vol);
                                   }
                                 });
-                                setDrilldownTitle(`'Magnatec' customers (< 5L) for ${se}`);
+                                setDrilldownTitle(`'Magnatec' customers (≥ 5L) for ${se}`);
                                 break;
                               }
-                              case "crbCount":
+                              case "crbCount": {
+                                const crbVolByCustomer: Record<string, { name: string; vol: number }> = {};
                                 rawInvoices
                                   .filter((r: any) => isCrb(r.product_brand_name))
                                   .forEach((r: any) => {
-                                    if (getStr(r.sales_exec_name) === se) {
-                                      pushItem(
-                                        getStr(r.customer_name),
-                                        getNum(r.product_volume)
-                                      );
+                                    if (getStr(r.sales_exec_name) !== se) return;
+                                    const custCode = getStr(r.customer_code);
+                                    const custName = getStr(r.customer_name);
+                                    if (!custCode && !custName) return;
+                                    const key = custCode || custName;
+                                    if (!crbVolByCustomer[key]) {
+                                      crbVolByCustomer[key] = {
+                                        name: custName || custCode,
+                                        vol: 0,
+                                      };
                                     }
+                                    crbVolByCustomer[key].vol += getNum(r.product_volume);
                                   });
-                                setDrilldownTitle(`'CRB Turbomax' customers for ${se}`);
+                                Object.values(crbVolByCustomer).forEach((entry) => {
+                                  if (entry.vol >= 5) {
+                                    pushItem(entry.name, entry.vol);
+                                  }
+                                });
+                                setDrilldownTitle(`'CRB Turbomax' customers (≥ 5L) for ${se}`);
                                 break;
+                              }
                               case "highVolCount": {
                                 const customerCoreVol: Record<string, number> = {};
                                 rawInvoices
