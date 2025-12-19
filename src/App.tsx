@@ -16,6 +16,7 @@ import Customers from "./pages/Customers";
 import AdminData from "./pages/AdminData";
 import AdminUsers from "./pages/AdminUsers";
 import WBCReport from "./pages/WBCReport";
+import KpiAdmin from "./pages/KpiAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/wbc-report" element={<WBCReport />} />
           <Route path="/admin-data" element={<AdminData />} />
           <Route path="/admin-users" element={<AdminUsers />} />
+          <Route path="/admin-kpi" element={<KpiAdmin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
