@@ -107,7 +107,12 @@ const Dashboard = () => {
     const start = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
     const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset + 1, 1);
 
-    const toStr = (d: Date) => d.toISOString().split("T")[0];
+    const toStr = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
 
     return {
       start: toStr(start),
@@ -665,34 +670,46 @@ const Dashboard = () => {
                                   });
                                 setDrilldownTitle(`'Activ' customers for ${se}`);
                                 break;
-                              case "power1Count":
+                              case "power1Count": {
+                                const power1VolByCustomer: Record<string, number> = {};
                                 rawInvoices
                                   .filter((r: any) =>
                                     POWER1_PRODUCTS_LIST.includes(getStr(r.product_name))
                                   )
                                   .forEach((r: any) => {
-                                    if (getStr(r.sales_exec_name) === se) {
-                                      pushItem(
-                                        getStr(r.customer_name),
-                                        getNum(r.product_volume)
-                                      );
-                                    }
+                                    if (getStr(r.sales_exec_name) !== se) return;
+                                    const cust = getStr(r.customer_code || r.customer_name);
+                                    if (!cust) return;
+                                    power1VolByCustomer[cust] =
+                                      (power1VolByCustomer[cust] || 0) + getNum(r.product_volume);
                                   });
-                                setDrilldownTitle(`'Power1' customers for ${se}`);
+                                Object.entries(power1VolByCustomer).forEach(([cust, vol]) => {
+                                  if (vol > 0 && vol < 5) {
+                                    pushItem(cust, vol);
+                                  }
+                                });
+                                setDrilldownTitle(`'Power1' customers (< 5L) for ${se}`);
                                 break;
-                              case "magnatecCount":
+                              }
+                              case "magnatecCount": {
+                                const magnatecVolByCustomer: Record<string, number> = {};
                                 rawInvoices
                                   .filter((r: any) => isMagnatec(r.product_brand_name))
                                   .forEach((r: any) => {
-                                    if (getStr(r.sales_exec_name) === se) {
-                                      pushItem(
-                                        getStr(r.customer_name),
-                                        getNum(r.product_volume)
-                                      );
-                                    }
+                                    if (getStr(r.sales_exec_name) !== se) return;
+                                    const cust = getStr(r.customer_code || r.customer_name);
+                                    if (!cust) return;
+                                    magnatecVolByCustomer[cust] =
+                                      (magnatecVolByCustomer[cust] || 0) + getNum(r.product_volume);
                                   });
-                                setDrilldownTitle(`'Magnatec' customers for ${se}`);
+                                Object.entries(magnatecVolByCustomer).forEach(([cust, vol]) => {
+                                  if (vol > 0 && vol < 5) {
+                                    pushItem(cust, vol);
+                                  }
+                                });
+                                setDrilldownTitle(`'Magnatec' customers (< 5L) for ${se}`);
                                 break;
+                              }
                               case "crbCount":
                                 rawInvoices
                                   .filter((r: any) => isCrb(r.product_brand_name))
