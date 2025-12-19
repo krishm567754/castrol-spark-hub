@@ -54,7 +54,8 @@ const excelDateToString = (excelDate: any): string => {
 // Helper to safely parse numbers
 const safeParseFloat = (value: any): number => {
   if (value === null || value === undefined || value === "") return 0;
-  const parsed = parseFloat(value);
+  const normalized = String(value).replace(/,/g, "");
+  const parsed = parseFloat(normalized);
   return isNaN(parsed) ? 0 : parsed;
 };
 
