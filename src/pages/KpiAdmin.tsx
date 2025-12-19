@@ -58,16 +58,182 @@ const KpiAdmin = () => {
         title: "Failed to load",
         description: error.message,
       });
-    } else {
-      setConfigs(data as KpiConfig[]);
+      setLoading(false);
+      return [] as KpiConfig[];
     }
+
+    const typed = (data || []) as KpiConfig[];
+    setConfigs(typed);
     setLoading(false);
+    return typed;
+  };
+
+  const seedDefaultKpis = async () => {
+    if (!isAdmin) return;
+
+    const defaults = [
+      {
+        name: "Volume by Sales Exec",
+        short_key: "volumeBySE",
+        kpi_type: "volume",
+        field_name: "product_volume",
+        operator: "> 0",
+        field_value: "0",
+        aggregation_type: "sum_by_sales_exec",
+        icon_name: "BarChart3",
+        display_order: 1,
+        is_active: true,
+      },
+      {
+        name: "'Activ' Customer Count",
+        short_key: "activCount",
+        kpi_type: "customer_count",
+        field_name: "product_brand_name",
+        operator: "brand = ACTIV (excl. ESSENTIAL)",
+        field_value: "ACTIV",
+        aggregation_type: "distinct_customers_by_se",
+        icon_name: "Users",
+        display_order: 2,
+        is_active: true,
+      },
+      {
+        name: "Power1 Customers ≥ 5L",
+        short_key: "power1Count",
+        kpi_type: "customer_count",
+        field_name: "product_volume",
+        operator: ">=",
+        field_value: "5",
+        aggregation_type: "per_se_per_customer (Power1 only)",
+        icon_name: "TrendingUp",
+        display_order: 3,
+        is_active: true,
+      },
+      {
+        name: "Magnatec Customers ≥ 5L",
+        short_key: "magnatecCount",
+        kpi_type: "customer_count",
+        field_name: "product_volume",
+        operator: ">=",
+        field_value: "5",
+        aggregation_type: "per_se_per_customer (Magnatec only)",
+        icon_name: "TrendingUp",
+        display_order: 4,
+        is_active: true,
+      },
+      {
+        name: "CRB Turbomax Customers ≥ 5L",
+        short_key: "crbCount",
+        kpi_type: "customer_count",
+        field_name: "product_volume",
+        operator: ">=",
+        field_value: "5",
+        aggregation_type: "per_se_per_customer (CRB Turbomax only)",
+        icon_name: "TrendingUp",
+        display_order: 5,
+        is_active: true,
+      },
+      {
+        name: "High-Volume Core Customers (≥ 9L)",
+        short_key: "highVolCount",
+        kpi_type: "customer_count",
+        field_name: "product_volume",
+        operator: ">=",
+        field_value: "9",
+        aggregation_type: "core_products_only_per_se_per_customer",
+        icon_name: "TrendingUp",
+        display_order: 6,
+        is_active: true,
+      },
+      {
+        name: "Autocare Customers (≥ 5L)",
+        short_key: "autocareCount",
+        kpi_type: "customer_count",
+        field_name: "product_volume",
+        operator: ">=",
+        field_value: "5",
+        aggregation_type: "autocare_only_per_se_per_customer",
+        icon_name: "Package",
+        display_order: 7,
+        is_active: true,
+      },
+      {
+        name: "Weekly Sales Volume",
+        short_key: "weeklySales",
+        kpi_type: "volume",
+        field_name: "product_volume",
+        operator: "> 0",
+        field_value: "0",
+        aggregation_type: "sum_by_week",
+        icon_name: "BarChart3",
+        display_order: 8,
+        is_active: true,
+      },
+      {
+        name: "Volume by Brand",
+        short_key: "volByBrand",
+        kpi_type: "volume",
+        field_name: "product_volume",
+        operator: "> 0",
+        field_value: "0",
+        aggregation_type: "sum_by_brand",
+        icon_name: "Package",
+        display_order: 9,
+        is_active: true,
+      },
+      {
+        name: "Top 10 Customers by Value",
+        short_key: "topCustomers",
+        kpi_type: "value",
+        field_name: "total_value",
+        operator: "> 0",
+        field_value: "0",
+        aggregation_type: "sum_by_customer",
+        icon_name: "FileText",
+        display_order: 10,
+        is_active: true,
+      },
+      {
+        name: "Unbilled Customers (< 9L)",
+        short_key: "unbilled",
+        kpi_type: "customer_count",
+        field_name: "product_volume",
+        operator: "<",
+        field_value: "9",
+        aggregation_type: "core_products_only_per_se_per_customer",
+        icon_name: "AlertCircle",
+        display_order: 11,
+        is_active: true,
+      },
+    ];
+
+    const { error } = await supabase.from("kpi_configs").insert(defaults);
+    if (error) {
+      console.error("Error seeding default KPI configs", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to create defaults",
+        description: error.message,
+      });
+    } else {
+      toast({
+        title: "Default KPIs created",
+        description: "Existing dashboard KPIs are now visible here.",
+      });
+    }
   };
 
   useEffect(() => {
-    loadConfigs();
+    const init = async () => {
+      const existing = await loadConfigs();
+      if (isAdmin && (!existing || existing.length === 0)) {
+        await seedDefaultKpis();
+        await loadConfigs();
+      }
+    };
+
+    init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAdmin]);
 
   const handleChange = (field: keyof typeof emptyForm, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
