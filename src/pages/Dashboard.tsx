@@ -133,6 +133,7 @@ const Dashboard = () => {
           .select(
             "invoice_date, invoice_no, customer_code, customer_name, sales_exec_name, master_brand_name, product_brand_name, product_name, product_volume, total_value"
           )
+          .eq("is_current_year", true)
           .gte("invoice_date", start)
           .lt("invoice_date", end);
 
@@ -153,11 +154,14 @@ const Dashboard = () => {
         // Build detailed KPI reports based on previous tool logic
         const reportsMap: Record<string, ReportTable> = {};
         const invoices = invoiceData || [];
-        setRawInvoices(invoices);
+        const kpiInvoices = invoices.filter(
+          (r: any) => !EXCLUDED_PRODUCTS_LIST.some((s) => getStr(r.product_name).includes(s))
+        );
+        setRawInvoices(kpiInvoices);
 
         // Volume by Sales Exec
         const volBySeMap: Record<string, number> = {};
-        invoices.forEach((r: any) => {
+        kpiInvoices.forEach((r: any) => {
           const se = getStr(r.sales_exec_name || "Unknown");
           volBySeMap[se] = (volBySeMap[se] || 0) + getNum(r.product_volume);
         });
@@ -170,7 +174,7 @@ const Dashboard = () => {
 
         // Activ customer count
         const activCustomerBySe: Record<string, Set<string>> = {};
-        invoices
+        kpiInvoices
           .filter((r: any) => isActiv(r.product_brand_name))
           .forEach((r: any) => {
             const se = getStr(r.sales_exec_name || "");
@@ -188,7 +192,7 @@ const Dashboard = () => {
 
         // Power1 under-target customer count (< 5L per customer)
         const power1VolByCustomer: Record<string, number> = {};
-        invoices
+        kpiInvoices
           .filter((r: any) => POWER1_PRODUCTS_LIST.includes(getStr(r.product_name)))
           .forEach((r: any) => {
             const se = getStr(r.sales_exec_name || "");
@@ -213,7 +217,7 @@ const Dashboard = () => {
 
         // Magnatec under-target customer count (< 5L per customer)
         const magnatecVolByCustomer: Record<string, number> = {};
-        invoices
+        kpiInvoices
           .filter((r: any) => isMagnatec(r.product_brand_name))
           .forEach((r: any) => {
             const se = getStr(r.sales_exec_name || "");
@@ -239,7 +243,7 @@ const Dashboard = () => {
 
         // CRB Turbomax customer count
         const crbCustomerBySe: Record<string, Set<string>> = {};
-        invoices
+        kpiInvoices
           .filter((r: any) => isCrb(r.product_brand_name))
           .forEach((r: any) => {
             const se = getStr(r.sales_exec_name || "");
@@ -256,7 +260,7 @@ const Dashboard = () => {
         };
 
         // Core products (non-autocare, non-excluded) for high volume / unbilled
-        const coreInvoices = invoices.filter((r: any) =>
+        const coreInvoices = kpiInvoices.filter((r: any) =>
           isCoreProduct(r.product_brand_name, r.product_name)
         );
 
@@ -282,7 +286,7 @@ const Dashboard = () => {
 
         // Autocare count (>=5L per customer)
         const autocareVolByCustomer: Record<string, { se: string; name: string; vol: number }> = {};
-        invoices
+        kpiInvoices
           .filter((r: any) => isAutocare(r.product_brand_name))
           .forEach((r: any) => {
             const custCode = getStr(r.customer_code);
@@ -311,7 +315,7 @@ const Dashboard = () => {
         // Volume by brand and weekly sales
         const volByBrand: Record<string, number> = {};
         const volByWeek: Record<string, number> = {};
-        invoices.forEach((r: any) => {
+        kpiInvoices.forEach((r: any) => {
           const brand = getStr(r.product_brand_name || "Not Classified");
           volByBrand[brand] = (volByBrand[brand] || 0) + getNum(r.product_volume);
 
@@ -343,7 +347,7 @@ const Dashboard = () => {
 
         // Top 10 customers by value
         const valByCustomer: Record<string, number> = {};
-        invoices.forEach((r: any) => {
+        kpiInvoices.forEach((r: any) => {
           const name = getStr(r.customer_name || "Unknown");
           valByCustomer[name] = (valByCustomer[name] || 0) + getNum(r.total_value);
         });
