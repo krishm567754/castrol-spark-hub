@@ -88,6 +88,8 @@ export const useExcelUpload = () => {
             product_name: String(row["Product Name"] || ""),
             product_volume: safeParseFloat(
               row["Product Volume"] ||
+                row["Product volume"] ||
+                row["PRODUCT VOLUME"] ||
                 row["Volume"] ||
                 row["Volume (Ltr)"] ||
                 row["Volume(Ltr)"] ||
@@ -350,6 +352,7 @@ export const useExcelUpload = () => {
             sales_exec_name: String(row["DSR Name"] || row["Sales Executive"] || ""),
             product_name: String(
               row["Product Name"] ||
+                row["Product Description"] ||
                 row["Item Name"] ||
                 row["Item Description"] ||
                 row["Material Name"] ||
@@ -357,8 +360,12 @@ export const useExcelUpload = () => {
             ),
             quantity: safeParseFloat(
               row["Back Qty"] ||
-                row["BackQty"] ||
+                row["Back Qty (Ltr)"] ||
+                row["Back Qty(Ltr)"] ||
                 row["Back_Qty"] ||
+                row["Back_Qty (Ltr)"] ||
+                row["Back_Qty(Ltr)"] ||
+                row["BackQty"] ||
                 row["Quantity"] ||
                 row["Qty"]
             ),

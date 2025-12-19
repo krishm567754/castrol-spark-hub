@@ -77,13 +77,19 @@ export const handler = async (req: Request): Promise<Response> => {
 
     const userId = authData.user.id;
 
-    // Set role
-    const { error: roleError } = await supabaseAdmin.from("user_roles").insert({
-      user_id: userId,
-      role,
-    });
-
-    if (roleError) {
+    // Set role: default 'user' is handled by handle_new_user trigger.
+    // Only add an explicit role when creating admins.
+    let roleError = null as any;
+    if (role === "admin") {
+      const { error } = await supabaseAdmin.from("user_roles").insert({
+        user_id: userId,
+        role,
+      });
+      roleError = error;
+    }
+ 
+    if (roleError && roleError.code !== "23505") {
+      // Ignore duplicate role errors, but surface any other DB issues
       console.error("create-user: role error", roleError);
       return new Response(JSON.stringify({ error: roleError.message }), {
         status: 400,
