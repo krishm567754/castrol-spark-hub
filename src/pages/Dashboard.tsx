@@ -81,6 +81,13 @@ type ReportTable = {
   rows: (string | number)[][];
 };
 
+type KpiConfigSummary = {
+  id: string;
+  name: string;
+  short_key: string;
+  is_active: boolean | null;
+};
+
 const Dashboard = () => {
   const currentDate = new Date();
   const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // 0 = current, -1 = prev, -2 = 2 months ago
@@ -94,6 +101,7 @@ const Dashboard = () => {
   const [drilldownTitle, setDrilldownTitle] = useState<string>("");
   const [drilldownItems, setDrilldownItems] = useState<{ label: string; value: number }[]>([]);
   const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const [kpiConfigsByKey, setKpiConfigsByKey] = useState<Record<string, KpiConfigSummary>>({});
   const { loading: scopeLoading, hasAllAccess, allowedSalesExecNames } = useSalesExecScope();
 
   const getMonthLabel = (offset: number) => {
@@ -140,8 +148,28 @@ const Dashboard = () => {
           invoiceQuery = invoiceQuery.in("sales_exec_name", allowedSalesExecNames);
         }
 
-         const { data: invoiceData, error: invoicesError } = await invoiceQuery.range(0, 9999);
+        const { data: invoiceData, error: invoicesError } = await invoiceQuery.range(0, 9999);
         if (invoicesError) throw invoicesError;
+
+        const { data: kpiConfigs, error: kpiConfigsError } = await supabase
+          .from("kpi_configs")
+          .select("id, name, short_key, is_active");
+        if (kpiConfigsError) {
+          console.error("Error loading KPI configs for dashboard", kpiConfigsError);
+        } else {
+          const byKey: Record<string, KpiConfigSummary> = {};
+          (kpiConfigs || []).forEach((cfg: any) => {
+            if (cfg.short_key) {
+              byKey[cfg.short_key] = {
+                id: cfg.id,
+                name: cfg.name,
+                short_key: cfg.short_key,
+                is_active: cfg.is_active,
+              };
+            }
+          });
+          setKpiConfigsByKey(byKey);
+        }
 
         const volume = (invoiceData || []).reduce((sum, row: any) => {
           const v = Number(row.product_volume) || 0;
@@ -437,6 +465,16 @@ const Dashboard = () => {
     loadKpis();
   }, [selectedMonthOffset, scopeLoading, hasAllAccess, allowedSalesExecNames]);
 
+  const getKpiName = (shortKey: string, defaultLabel: string) =>
+    kpiConfigsByKey[shortKey]?.name || defaultLabel;
+
+  const isKpiVisible = (shortKey: string) => {
+    const cfg = kpiConfigsByKey[shortKey];
+    if (!cfg) return true;
+    return cfg.is_active !== false;
+  };
+
+
   return (
     <AppLayout>
       <div className="p-4 sm:p-6 space-y-6">
@@ -490,116 +528,138 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2 mb-6">
-              <Button
-                variant={selectedReport === "volumeBySE" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("volumeBySE");
-                  setReportTitle("Volume by Sales Exec");
-                }}
-              >
-                Volume by Sales Exec
-              </Button>
-              <Button
-                variant={selectedReport === "activCount" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("activCount");
-                  setReportTitle("'Activ' Customer Count");
-                }}
-              >
-                'Activ' Customer Count
-              </Button>
-              <Button
-                variant={selectedReport === "power1Count" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("power1Count");
-                  setReportTitle("'Power1' Customers ≥ 5L");
-                }}
-              >
-                Power1 ≥ 5L
-              </Button>
-              <Button
-                variant={selectedReport === "magnatecCount" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("magnatecCount");
-                  setReportTitle("'Magnatec' Customers ≥ 5L");
-                }}
-              >
-                Magnatec ≥ 5L
-              </Button>
-              <Button
-                variant={selectedReport === "crbCount" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("crbCount");
-                  setReportTitle("'CRB Turbomax' Count");
-                }}
-              >
-                'CRB Turbomax' Count
-              </Button>
-              <Button
-                variant={selectedReport === "highVolCount" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("highVolCount");
-                  setReportTitle("High-Volume Core Customers (≥ 9L)");
-                }}
-              >
-                High-Volume Customers
-              </Button>
-              <Button
-                variant={selectedReport === "autocareCount" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("autocareCount");
-                  setReportTitle("Autocare Customers (>= 5L)");
-                }}
-              >
-                Autocare Count
-              </Button>
-              <Button
-                variant={selectedReport === "weeklySales" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("weeklySales");
-                  setReportTitle("Weekly Sales Volume");
-                }}
-              >
-                Weekly Sales
-              </Button>
-              <Button
-                variant={selectedReport === "volByBrand" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("volByBrand");
-                  setReportTitle("Volume by Brand");
-                }}
-              >
-                Volume by Brand
-              </Button>
-              <Button
-                variant={selectedReport === "topCustomers" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("topCustomers");
-                  setReportTitle("Top 10 Customers");
-                }}
-              >
-                Top 10 Customers
-              </Button>
-              <Button
-                variant={selectedReport === "unbilled" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedReport("unbilled");
-                  setReportTitle("Unbilled Customers (< 9L)");
-                }}
-              >
-                Unbilled Customers
-              </Button>
+              {isKpiVisible("volumeBySE") && (
+                <Button
+                  variant={selectedReport === "volumeBySE" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("volumeBySE");
+                    setReportTitle(getKpiName("volumeBySE", "Volume by Sales Exec"));
+                  }}
+                >
+                  {getKpiName("volumeBySE", "Volume by Sales Exec")}
+                </Button>
+              )}
+              {isKpiVisible("activCount") && (
+                <Button
+                  variant={selectedReport === "activCount" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("activCount");
+                    setReportTitle(getKpiName("activCount", "'Activ' Customer Count"));
+                  }}
+                >
+                  {getKpiName("activCount", "'Activ' Customer Count")}
+                </Button>
+              )}
+              {isKpiVisible("power1Count") && (
+                <Button
+                  variant={selectedReport === "power1Count" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("power1Count");
+                    setReportTitle(getKpiName("power1Count", "'Power1' Customers ≥ 5L"));
+                  }}
+                >
+                  {getKpiName("power1Count", "Power1 ≥ 5L")}
+                </Button>
+              )}
+              {isKpiVisible("magnatecCount") && (
+                <Button
+                  variant={selectedReport === "magnatecCount" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("magnatecCount");
+                    setReportTitle(getKpiName("magnatecCount", "'Magnatec' Customers ≥ 5L"));
+                  }}
+                >
+                  {getKpiName("magnatecCount", "Magnatec ≥ 5L")}
+                </Button>
+              )}
+              {isKpiVisible("crbCount") && (
+                <Button
+                  variant={selectedReport === "crbCount" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("crbCount");
+                    setReportTitle(getKpiName("crbCount", "'CRB Turbomax' Count"));
+                  }}
+                >
+                  {getKpiName("crbCount", "'CRB Turbomax' Count")}
+                </Button>
+              )}
+              {isKpiVisible("highVolCount") && (
+                <Button
+                  variant={selectedReport === "highVolCount" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("highVolCount");
+                    setReportTitle(getKpiName("highVolCount", "High-Volume Core Customers (≥ 9L)"));
+                  }}
+                >
+                  {getKpiName("highVolCount", "High-Volume Customers")}
+                </Button>
+              )}
+              {isKpiVisible("autocareCount") && (
+                <Button
+                  variant={selectedReport === "autocareCount" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("autocareCount");
+                    setReportTitle(getKpiName("autocareCount", "Autocare Customers (>= 5L)"));
+                  }}
+                >
+                  {getKpiName("autocareCount", "Autocare Count")}
+                </Button>
+              )}
+              {isKpiVisible("weeklySales") && (
+                <Button
+                  variant={selectedReport === "weeklySales" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("weeklySales");
+                    setReportTitle(getKpiName("weeklySales", "Weekly Sales Volume"));
+                  }}
+                >
+                  {getKpiName("weeklySales", "Weekly Sales")}
+                </Button>
+              )}
+              {isKpiVisible("volByBrand") && (
+                <Button
+                  variant={selectedReport === "volByBrand" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("volByBrand");
+                    setReportTitle(getKpiName("volByBrand", "Volume by Brand"));
+                  }}
+                >
+                  {getKpiName("volByBrand", "Volume by Brand")}
+                </Button>
+              )}
+              {isKpiVisible("topCustomers") && (
+                <Button
+                  variant={selectedReport === "topCustomers" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("topCustomers");
+                    setReportTitle(getKpiName("topCustomers", "Top 10 Customers"));
+                  }}
+                >
+                  {getKpiName("topCustomers", "Top 10 Customers")}
+                </Button>
+              )}
+              {isKpiVisible("unbilled") && (
+                <Button
+                  variant={selectedReport === "unbilled" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedReport("unbilled");
+                    setReportTitle(getKpiName("unbilled", "Unbilled Customers (< 9L)"));
+                  }}
+                >
+                  {getKpiName("unbilled", "Unbilled Customers")}
+                </Button>
+              )}
             </div>
 
             {selectedReport && reports[selectedReport] && reports[selectedReport].rows.length > 0 ? (
