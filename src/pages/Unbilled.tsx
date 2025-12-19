@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { X } from "lucide-react";
+import { useSalesExecScope } from "@/hooks/useSalesExecScope";
 
 interface UnbilledRow {
   se: string;
@@ -21,8 +22,11 @@ const Unbilled = () => {
   const [detailBySe, setDetailBySe] = useState<Record<string, UnbilledDetailRow[]>>({});
   const [selectedSe, setSelectedSe] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { loading: scopeLoading, hasAllAccess, allowedSalesExecNames } = useSalesExecScope();
 
   useEffect(() => {
+    if (scopeLoading) return;
+
     const loadUnbilled = async () => {
       setIsLoading(true);
       try {
@@ -34,19 +38,26 @@ const Unbilled = () => {
           .toISOString()
           .split("T")[0];
 
-        const { data: invoiceData, error: invoicesError } = await supabase
+        let invoiceQuery = supabase
           .from("invoices")
           .select(
             "customer_code, customer_name, sales_exec_name, product_brand_name, product_name, product_volume"
           )
           .gte("invoice_date", start)
           .lt("invoice_date", end);
+        if (!hasAllAccess && allowedSalesExecNames.length > 0) {
+          invoiceQuery = invoiceQuery.in("sales_exec_name", allowedSalesExecNames);
+        }
+        const { data: invoiceData, error: invoicesError } = await invoiceQuery;
         if (invoicesError) throw invoicesError;
 
-        const { data: customers, error: customersError } = await supabase
+        let customersQuery = supabase
           .from("customers")
           .select("customer_code, customer_name, sales_executive");
-        if (customersError) throw customersError;
+        if (!hasAllAccess && allowedSalesExecNames.length > 0) {
+          customersQuery = customersQuery.in("sales_executive", allowedSalesExecNames);
+        }
+        const { data: customers, error: customersError } = await customersQuery;
 
         const EXCLUDED_PRODUCTS_LIST = [
           "TW SHINER SPONGE",
@@ -127,7 +138,7 @@ const Unbilled = () => {
     };
 
     loadUnbilled();
-  }, []);
+  }, [scopeLoading, hasAllAccess, allowedSalesExecNames]);
 
   return (
     <AppLayout>

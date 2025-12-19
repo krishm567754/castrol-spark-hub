@@ -13,7 +13,7 @@ const excelDateToString = (excelDate: any): string => {
     if (!str) return "";
 
     // Handle formats like DD/MM/YYYY, DD-MM-YYYY, DD/MM/YY, DD-MM-YY, DD.MM.YYYY
-    const match = str.match(/^(\d{1,2})[\/-\.](\d{1,2})[\/-\.](\d{2,4})$/);
+    const match = str.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
     if (match) {
       const day = parseInt(match[1], 10);
       const month = parseInt(match[2], 10) - 1; // JS months are 0-based

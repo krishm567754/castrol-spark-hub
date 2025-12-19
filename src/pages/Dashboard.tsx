@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BarChart3, FileText, Package, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useSalesExecScope } from "@/hooks/useSalesExecScope";
 
 // KPI filter config migrated from previous tool
 const EXCLUDED_PRODUCTS_LIST = [
@@ -93,6 +94,7 @@ const Dashboard = () => {
   const [drilldownTitle, setDrilldownTitle] = useState<string>("");
   const [drilldownItems, setDrilldownItems] = useState<{ label: string; value: number }[]>([]);
   const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const { loading: scopeLoading, hasAllAccess, allowedSalesExecNames } = useSalesExecScope();
 
   const getMonthLabel = (offset: number) => {
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
@@ -114,13 +116,14 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    if (scopeLoading) return;
+
     const loadKpis = async () => {
       setIsLoading(true);
       try {
         const { start, end } = getMonthDateRange(selectedMonthOffset);
 
-        // Invoices for selected month (current + historical)
-        const { data: invoiceData, error: invoicesError } = await supabase
+        let invoiceQuery = supabase
           .from("invoices")
           .select(
             "invoice_date, invoice_no, customer_code, customer_name, sales_exec_name, master_brand_name, product_brand_name, product_name, product_volume, total_value"
@@ -128,6 +131,11 @@ const Dashboard = () => {
           .gte("invoice_date", start)
           .lt("invoice_date", end);
 
+        if (!hasAllAccess && allowedSalesExecNames.length > 0) {
+          invoiceQuery = invoiceQuery.in("sales_exec_name", allowedSalesExecNames);
+        }
+
+        const { data: invoiceData, error: invoicesError } = await invoiceQuery;
         if (invoicesError) throw invoicesError;
 
         const volume = (invoiceData || []).reduce((sum, row: any) => {
@@ -253,15 +261,16 @@ const Dashboard = () => {
         };
 
         // Autocare count (>=5L per customer)
-        const autocareVolByCustomer: Record<string, { se: string; vol: number }> = {};
+        const autocareVolByCustomer: Record<string, { se: string; name: string; vol: number }> = {};
         invoices
           .filter((r: any) => isAutocare(r.product_brand_name))
           .forEach((r: any) => {
             const custCode = getStr(r.customer_code);
+            const custName = getStr(r.customer_name);
             const se = getStr(r.sales_exec_name);
             if (!custCode) return;
             if (!autocareVolByCustomer[custCode]) {
-              autocareVolByCustomer[custCode] = { se, vol: 0 };
+              autocareVolByCustomer[custCode] = { se, name: custName, vol: 0 };
             }
             autocareVolByCustomer[custCode].vol += getNum(r.product_volume);
           });
@@ -312,9 +321,15 @@ const Dashboard = () => {
         };
 
         // Unbilled (needs customer master)
-        const { data: customers, error: customersError } = await supabase
+        let customersQuery = supabase
           .from("customers")
           .select("customer_code, customer_name, sales_executive");
+
+        if (!hasAllAccess && allowedSalesExecNames.length > 0) {
+          customersQuery = customersQuery.in("sales_executive", allowedSalesExecNames);
+        }
+
+        const { data: customers, error: customersError } = await customersQuery;
         if (customersError) throw customersError;
 
         const coreVolByCustomerCode: Record<string, number> = {};
@@ -369,7 +384,7 @@ const Dashboard = () => {
     };
 
     loadKpis();
-  }, [selectedMonthOffset]);
+  }, [selectedMonthOffset, scopeLoading, hasAllAccess, allowedSalesExecNames]);
 
   return (
     <AppLayout>
@@ -675,21 +690,24 @@ const Dashboard = () => {
                                 break;
                               }
                               case "autocareCount": {
-                                const autocareVolByCustomer: Record<string, number> = {};
+                                const autocareVolByCustomer: Record<string, { name: string; vol: number }> = {};
                                 rawInvoices
                                   .filter((r: any) => isAutocare(r.product_brand_name))
                                   .forEach((r: any) => {
                                     if (getStr(r.sales_exec_name) !== se) return;
                                     const custCode = getStr(r.customer_code);
-                                    if (!custCode) return;
-                                    autocareVolByCustomer[custCode] =
-                                      (autocareVolByCustomer[custCode] || 0) +
-                                      getNum(r.product_volume);
+                                    const custName = getStr(r.customer_name);
+                                    if (!custCode && !custName) return;
+                                    const key = custCode || custName;
+                                    if (!autocareVolByCustomer[key]) {
+                                      autocareVolByCustomer[key] = { name: custName || custCode, vol: 0 };
+                                    }
+                                    autocareVolByCustomer[key].vol += getNum(r.product_volume);
                                   });
-                                Object.entries(autocareVolByCustomer)
-                                  .filter(([, vol]) => vol >= 5)
-                                  .forEach(([code, vol]) => {
-                                    pushItem(code, vol);
+                                Object.values(autocareVolByCustomer)
+                                  .filter((entry) => entry.vol >= 5)
+                                  .forEach((entry) => {
+                                    pushItem(entry.name, entry.vol);
                                   });
                                 setDrilldownTitle(
                                   `Autocare customers (>= 5L) for ${se}`

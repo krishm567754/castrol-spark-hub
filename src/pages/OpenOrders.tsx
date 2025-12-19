@@ -4,13 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useSalesExecScope } from "@/hooks/useSalesExecScope";
 
 const OpenOrders = () => {
   const [orders, setOrders] = useState<Tables<"open_orders">[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Tables<"open_orders"> | null>(null);
+  const { loading: scopeLoading, hasAllAccess, allowedSalesExecNames } = useSalesExecScope();
 
   useEffect(() => {
+    if (scopeLoading) return;
+
     const loadOrders = async () => {
       setIsLoading(true);
       try {
@@ -22,12 +26,18 @@ const OpenOrders = () => {
           .toISOString()
           .split("T")[0];
 
-        const { data, error } = await supabase
+        let query = supabase
           .from("open_orders")
           .select("*")
           .gte("order_date", start)
           .lt("order_date", end)
           .order("order_date", { ascending: false });
+
+        if (!hasAllAccess && allowedSalesExecNames.length > 0) {
+          query = query.in("sales_exec_name", allowedSalesExecNames);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         setOrders(data || []);
@@ -40,7 +50,7 @@ const OpenOrders = () => {
     };
 
     loadOrders();
-  }, []);
+  }, [scopeLoading, hasAllAccess, allowedSalesExecNames]);
 
   const grouped = useMemo(() => {
     if (orders.length === 0) return [] as [string, Tables<"open_orders">[]][];
