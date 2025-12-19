@@ -12,8 +12,8 @@ const excelDateToString = (excelDate: any): string => {
     const str = excelDate.trim();
     if (!str) return "";
 
-    // Handle formats like DD/MM/YYYY, DD-MM-YYYY, DD/MM/YY, DD-MM-YY
-    const match = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+    // Handle formats like DD/MM/YYYY, DD-MM-YYYY, DD/MM/YY, DD-MM-YY, DD.MM.YYYY
+    const match = str.match(/^(\d{1,2})[\/-\.](\d{1,2})[\/-\.](\d{2,4})$/);
     if (match) {
       const day = parseInt(match[1], 10);
       const month = parseInt(match[2], 10) - 1; // JS months are 0-based
@@ -75,7 +75,15 @@ export const useExcelUpload = () => {
       // Map Excel columns to database columns with proper date parsing
       const invoices = jsonData
         .map((row: any) => {
-          const invoiceDate = excelDateToString(row["Invoice Date"] || row["Date"] || "");
+          const invoiceDate = excelDateToString(
+            row["Invoice Date"] ||
+              row["Invoice date"] ||
+              row["INVOICE DATE"] ||
+              row["Date"] ||
+              row["Doc Date"] ||
+              row["Document Date"] ||
+              ""
+          );
 
           return {
             invoice_no: String(row["Invoice No"] || row["Invoice Number"] || ""),
