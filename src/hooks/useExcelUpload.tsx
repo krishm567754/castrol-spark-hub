@@ -86,8 +86,18 @@ export const useExcelUpload = () => {
             master_brand_name: String(row["Master Brand Name"] || ""),
             product_brand_name: String(row["Product Brand Name"] || ""),
             product_name: String(row["Product Name"] || ""),
-            product_volume: safeParseFloat(row["Product Volume"] || row["Volume"]),
-            total_value: safeParseFloat(row["Total Value incl VAT/GST"] || row["Total Value"]),
+            product_volume: safeParseFloat(
+              row["Product Volume"] ||
+                row["Volume"] ||
+                row["Volume (Ltr)"] ||
+                row["Volume(Ltr)"] ||
+                row["Volume Ltr"]
+            ),
+            total_value: safeParseFloat(
+              row["Total Value incl VAT/GST"] ||
+                row["Total Value"] ||
+                row["Total Amount"]
+            ),
             state_name: String(row["State Name"] || ""),
             district_name: String(row["District Name"] || ""),
             is_current_year: isCurrentYear,
