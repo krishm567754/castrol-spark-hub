@@ -42,6 +42,7 @@ const KpiAdmin = () => {
   const [loading, setLoading] = useState(false);
   const [configs, setConfigs] = useState<KpiConfig[]>([]);
   const [form, setForm] = useState<typeof emptyForm>(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const loadConfigs = async () => {
     setLoading(true);
@@ -72,7 +73,7 @@ const KpiAdmin = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) {
       toast({
@@ -85,36 +86,44 @@ const KpiAdmin = () => {
 
     const displayOrderNum = form.display_order ? Number(form.display_order) : null;
 
-    const { error } = await supabase.from("kpi_configs").insert([
-      {
-        name: form.name.trim(),
-        short_key: form.short_key.trim(),
-        kpi_type: form.kpi_type.trim(),
-        field_name: form.field_name.trim(),
-        operator: form.operator.trim(),
-        field_value: form.field_value.trim(),
-        aggregation_type: form.aggregation_type.trim(),
-        icon_name: form.icon_name.trim() || null,
-        display_order: displayOrderNum,
-        is_active: form.is_active,
-      },
-    ]);
+    const payload = {
+      name: form.name.trim(),
+      short_key: form.short_key.trim(),
+      kpi_type: form.kpi_type.trim(),
+      field_name: form.field_name.trim(),
+      operator: form.operator.trim(),
+      field_value: form.field_value.trim(),
+      aggregation_type: form.aggregation_type.trim(),
+      icon_name: form.icon_name.trim() || null,
+      display_order: displayOrderNum,
+      is_active: form.is_active,
+    };
+
+    const { error } = editingId
+      ? await supabase
+          .from("kpi_configs")
+          .update(payload)
+          .eq("id", editingId)
+      : await supabase.from("kpi_configs").insert([payload]);
 
     if (error) {
-      console.error("Error creating KPI config", error);
+      console.error(editingId ? "Error updating KPI config" : "Error creating KPI config", error);
       toast({
         variant: "destructive",
-        title: "Create failed",
+        title: editingId ? "Update failed" : "Create failed",
         description: error.message,
       });
       return;
     }
 
     toast({
-      title: "KPI created",
-      description: "New KPI configuration added.",
+      title: editingId ? "KPI updated" : "KPI created",
+      description: editingId
+        ? "KPI configuration changes saved."
+        : "New KPI configuration added.",
     });
     setForm(emptyForm);
+    setEditingId(null);
     loadConfigs();
   };
 
@@ -145,7 +154,7 @@ const KpiAdmin = () => {
                 <CardDescription>Set basic rule fields for a new KPI.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="space-y-4" onSubmit={handleCreate}>
+                <form className="space-y-4" onSubmit={handleSubmit}>
                   <div className="space-y-2">
                     <Label htmlFor="name">Display Name</Label>
                     <Input
@@ -286,6 +295,7 @@ const KpiAdmin = () => {
                           <th className="px-2 py-2">Type</th>
                           <th className="px-2 py-2">Field / Operator / Value</th>
                           <th className="px-2 py-2 text-right">Active</th>
+                          <th className="px-2 py-2 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -311,6 +321,68 @@ const KpiAdmin = () => {
                             </td>
                             <td className="px-2 py-2 align-top text-right">
                               {cfg.is_active ? "Active" : "Inactive"}
+                            </td>
+                            <td className="px-2 py-2 align-top text-right space-x-2 whitespace-nowrap">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setForm({
+                                    name: cfg.name,
+                                    short_key: cfg.short_key,
+                                    kpi_type: cfg.kpi_type,
+                                    field_name: cfg.field_name,
+                                    operator: cfg.operator,
+                                    field_value: cfg.field_value,
+                                    aggregation_type: cfg.aggregation_type,
+                                    icon_name: cfg.icon_name || "",
+                                    display_order: cfg.display_order?.toString() ?? "",
+                                    is_active: cfg.is_active ?? true,
+                                  });
+                                  setEditingId(cfg.id);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  if (!isAdmin) {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "Access denied",
+                                      description: "Only admins can manage KPI configs.",
+                                    });
+                                    return;
+                                  }
+                                  if (!window.confirm(`Delete KPI "${cfg.name}"?`)) return;
+                                  const { error } = await supabase
+                                    .from("kpi_configs")
+                                    .delete()
+                                    .eq("id", cfg.id);
+                                  if (error) {
+                                    console.error("Error deleting KPI config", error);
+                                    toast({
+                                      variant: "destructive",
+                                      title: "Delete failed",
+                                      description: error.message,
+                                    });
+                                  } else {
+                                    toast({
+                                      title: "KPI deleted",
+                                      description: "KPI configuration removed.",
+                                    });
+                                    if (editingId === cfg.id) {
+                                      setEditingId(null);
+                                      setForm(emptyForm);
+                                    }
+                                    loadConfigs();
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
                             </td>
                           </tr>
                         ))}
