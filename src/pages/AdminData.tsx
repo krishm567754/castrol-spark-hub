@@ -29,6 +29,34 @@ const AdminData = () => {
     openOrders: number;
   }>({ invoicesCurrent: 0, invoicesHistorical: 0, customers: 0, stock: 0, openOrders: 0 });
 
+  const refreshDatasetCounts = async () => {
+    const [currentInv, historicalInv, customers, stock, openOrders] = await Promise.all([
+      supabase
+        .from("invoices")
+        .select("id", { count: "exact", head: true })
+        .eq("is_current_year", true),
+      supabase
+        .from("invoices")
+        .select("id", { count: "exact", head: true })
+        .eq("is_current_year", false),
+      supabase.from("customers").select("id", { count: "exact", head: true }),
+      supabase.from("stock").select("id", { count: "exact", head: true }),
+      supabase.from("open_orders").select("id", { count: "exact", head: true }),
+    ]);
+
+    setDatasetCounts({
+      invoicesCurrent: currentInv.count || 0,
+      invoicesHistorical: historicalInv.count || 0,
+      customers: customers.count || 0,
+      stock: stock.count || 0,
+      openOrders: openOrders.count || 0,
+    });
+  };
+
+  useEffect(() => {
+    refreshDatasetCounts();
+  }, []);
+
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
     type: string,
@@ -57,6 +85,7 @@ const AdminData = () => {
           break;
       }
       setUploadCounts((prev) => ({ ...prev, [type]: count }));
+      await refreshDatasetCounts();
       // Reset input
       event.target.value = "";
     } catch (error) {
@@ -168,88 +197,103 @@ const AdminData = () => {
              <CardTitle>Loaded Data Overview</CardTitle>
              <CardDescription>See which datasets are loaded and clear them if needed</CardDescription>
            </CardHeader>
-           <CardContent className="space-y-3 text-sm">
-             <div className="flex items-center justify-between">
-               <span>Current Year Invoices</span>
-               <div className="flex items-center gap-3">
-                 <span className="text-muted-foreground">
-                   {datasetCounts.invoicesCurrent.toLocaleString()} rows
-                 </span>
-                 <Button
-                   variant="outline"
-                   size="sm"
-                   disabled={isUploading}
-                   onClick={() => clearInvoices(true)}
-                 >
-                   Clear
-                 </Button>
-               </div>
-             </div>
-             <div className="flex items-center justify-between">
-               <span>Historical Invoices</span>
-               <div className="flex items-center gap-3">
-                 <span className="text-muted-foreground">
-                   {datasetCounts.invoicesHistorical.toLocaleString()} rows
-                 </span>
-                 <Button
-                   variant="outline"
-                   size="sm"
-                   disabled={isUploading}
-                   onClick={() => clearInvoices(false)}
-                 >
-                   Clear
-                 </Button>
-               </div>
-             </div>
-             <div className="flex items-center justify-between">
-               <span>Customer Master</span>
-               <div className="flex items-center gap-3">
-                 <span className="text-muted-foreground">
-                   {datasetCounts.customers.toLocaleString()} rows
-                 </span>
-                 <Button
-                   variant="outline"
-                   size="sm"
-                   disabled={isUploading}
-                   onClick={clearCustomers}
-                 >
-                   Clear
-                 </Button>
-               </div>
-             </div>
-             <div className="flex items-center justify-between">
-               <span>Stock</span>
-               <div className="flex items-center gap-3">
-                 <span className="text-muted-foreground">
-                   {datasetCounts.stock.toLocaleString()} rows
-                 </span>
-                 <Button
-                   variant="outline"
-                   size="sm"
-                   disabled={isUploading}
-                   onClick={clearStock}
-                 >
-                   Clear
-                 </Button>
-               </div>
-             </div>
-             <div className="flex items-center justify-between">
-               <span>Open Orders</span>
-               <div className="flex items-center gap-3">
-                 <span className="text-muted-foreground">
-                   {datasetCounts.openOrders.toLocaleString()} rows
-                 </span>
-                 <Button
-                   variant="outline"
-                   size="sm"
-                   disabled={isUploading}
-                   onClick={clearOpenOrders}
-                 >
-                   Clear
-                 </Button>
-               </div>
-             </div>
-           </CardContent>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span>Current Year Invoices</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-muted-foreground">
+                    {datasetCounts.invoicesCurrent.toLocaleString()} rows
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isUploading}
+                    onClick={async () => {
+                      await clearInvoices(true);
+                      await refreshDatasetCounts();
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Historical Invoices</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-muted-foreground">
+                    {datasetCounts.invoicesHistorical.toLocaleString()} rows
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isUploading}
+                    onClick={async () => {
+                      await clearInvoices(false);
+                      await refreshDatasetCounts();
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Customer Master</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-muted-foreground">
+                    {datasetCounts.customers.toLocaleString()} rows
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isUploading}
+                    onClick={async () => {
+                      await clearCustomers();
+                      await refreshDatasetCounts();
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Stock</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-muted-foreground">
+                    {datasetCounts.stock.toLocaleString()} rows
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isUploading}
+                    onClick={async () => {
+                      await clearStock();
+                      await refreshDatasetCounts();
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Open Orders</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-muted-foreground">
+                    {datasetCounts.openOrders.toLocaleString()} rows
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isUploading}
+                    onClick={async () => {
+                      await clearOpenOrders();
+                      await refreshDatasetCounts();
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
          </Card>
        </div>
      </AppLayout>
