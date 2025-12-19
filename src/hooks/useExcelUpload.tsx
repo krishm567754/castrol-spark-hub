@@ -348,8 +348,20 @@ export const useExcelUpload = () => {
             customer_code: String(row["Customer Code"] || ""),
             customer_name: String(row["Customer Name"] || ""),
             sales_exec_name: String(row["DSR Name"] || row["Sales Executive"] || ""),
-            product_name: String(row["Product Name"] || ""),
-            quantity: safeParseFloat(row["Quantity"]),
+            product_name: String(
+              row["Product Name"] ||
+                row["Item Name"] ||
+                row["Item Description"] ||
+                row["Material Name"] ||
+                ""
+            ),
+            quantity: safeParseFloat(
+              row["Back Qty"] ||
+                row["BackQty"] ||
+                row["Back_Qty"] ||
+                row["Quantity"] ||
+                row["Qty"]
+            ),
             status: String(row["Status"] || "Open"),
           };
         })

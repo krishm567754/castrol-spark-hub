@@ -121,59 +121,25 @@ export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogPr
     setIsLoading(true);
 
     try {
-      // Create user account
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { username },
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: {
+          email,
+          password,
+          username,
+          role,
+          hasAllAccess,
+          selectedExecs,
+          allPages,
+          selectedPages,
+        },
       });
 
-      if (authError) throw authError;
-
-      // Set role
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: authData.user.id,
-        role,
-      });
-
-      if (roleError) throw roleError;
-
-      // Set sales exec access
-      if (hasAllAccess) {
-        const { error: accessError } = await supabase
-          .from("user_sales_exec_access")
-          .insert({
-            user_id: authData.user.id,
-            has_all_access: true,
-          });
-        if (accessError) throw accessError;
-      } else {
-        const accessRecords = selectedExecs.map((execId) => ({
-          user_id: authData.user.id,
-          sales_exec_id: execId,
-          has_all_access: false,
-        }));
-        if (accessRecords.length > 0) {
-          const { error: accessError } = await supabase
-            .from("user_sales_exec_access")
-            .insert(accessRecords);
-          if (accessError) throw accessError;
-        }
+      if (error) {
+        throw error;
       }
 
-      // Set page access (empty = all pages)
-      if (!allPages) {
-        const pageRecords = selectedPages.map((pageKey) => ({
-          user_id: authData.user.id,
-          page_key: pageKey,
-        }));
-        if (pageRecords.length > 0) {
-          const { error: pageError } = await supabase
-            .from("user_page_access")
-            .insert(pageRecords);
-          if (pageError) throw pageError;
-        }
+      if (data && (data as any).error) {
+        throw new Error((data as any).error);
       }
 
       toast({
@@ -181,7 +147,6 @@ export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogPr
         description: `Successfully created user ${username}`,
       });
 
-      // Reset form
       setEmail("");
       setUsername("");
       setPassword("");
@@ -190,14 +155,19 @@ export const AddUserDialog = ({ open, onOpenChange, onSuccess }: AddUserDialogPr
       setSelectedExecs([]);
       setAllPages(true);
       setSelectedPages([]);
-      
+
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
+      console.error("Failed to create user", error);
       toast({
         variant: "destructive",
         title: "Failed to create user",
-        description: error.message,
+        description:
+          error?.message ===
+          "new row violates row-level security policy for table \"user_roles\""
+            ? "You are not allowed to create users. Only admins can create users."
+            : error.message || "Something went wrong while creating the user.",
       });
     } finally {
       setIsLoading(false);
