@@ -22,16 +22,22 @@ const excelDateToString = (excelDate: any): string => {
         // Assume 2000+ for two-digit years like 24, 25
         year += 2000;
       }
-      const date = new Date(year, month, day);
+      
+      // Use UTC to avoid timezone shifts
+      const date = new Date(Date.UTC(year, month, day));
       if (!isNaN(date.getTime())) {
-        return date.toISOString().split("T")[0];
+        const result = date.toISOString().split("T")[0];
+        return result;
       }
     }
 
-    // Fallback: let JS try to parse it
+    // Fallback: let JS try to parse it (but use UTC)
     const date = new Date(str);
     if (!isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0];
+      // Adjust for timezone to get the intended date
+      const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+      const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+      return adjustedDate.toISOString().split("T")[0];
     }
     return "";
   }
@@ -40,7 +46,7 @@ const excelDateToString = (excelDate: any): string => {
   if (typeof excelDate === "number") {
     // Excel date serial number starts from 1900-01-01
     // JavaScript Date starts from 1970-01-01
-    const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // December 30, 1899 UTC
     const date = new Date(excelEpoch.getTime() + excelDate * 86400000);
 
     if (!isNaN(date.getTime())) {
@@ -73,9 +79,11 @@ export const useExcelUpload = () => {
 
       console.log("Sample row from Excel:", jsonData[0]); // For debugging
 
+      console.log(`Total rows in Excel: ${jsonData.length}`);
+
       // Map Excel columns to database columns with proper date parsing
       const invoices = jsonData
-        .map((row: any) => {
+        .map((row: any, idx: number) => {
           const invoiceDate = excelDateToString(
             row["Invoice Date"] ||
               row["Invoice date"] ||
@@ -85,6 +93,16 @@ export const useExcelUpload = () => {
               row["Document Date"] ||
               ""
           );
+
+          // Log first few problematic dates for debugging
+          if (idx < 3 || !invoiceDate) {
+            console.log(`Row ${idx + 1}:`, {
+              rawDate: row["Invoice Date"] || row["Invoice date"] || row["INVOICE DATE"],
+              parsedDate: invoiceDate,
+              invoiceNo: row["Invoice No"],
+              volume: row["Product Volume"] || row["Volume (Ltr)"]
+            });
+          }
 
           return {
             invoice_no: String(row["Invoice No"] || row["Invoice Number"] || ""),
@@ -117,8 +135,16 @@ export const useExcelUpload = () => {
         })
         .filter((invoice) => invoice.invoice_date && invoice.invoice_no); // Only include rows with valid dates and invoice numbers
 
+      console.log(`Valid invoices after filtering: ${invoices.length}`);
+      console.log(`Total volume in parsed data: ${invoices.reduce((sum, inv) => sum + (inv.product_volume || 0), 0).toFixed(2)}`);
+
       if (invoices.length === 0) {
         throw new Error("No valid invoice records found in the file");
+      }
+
+      const skippedCount = jsonData.length - invoices.length;
+      if (skippedCount > 0) {
+        console.warn(`⚠️ Skipped ${skippedCount} rows due to missing date or invoice number`);
       }
 
       // For current-year uploads, clear existing current-year invoices to avoid duplicates
@@ -135,20 +161,54 @@ export const useExcelUpload = () => {
       // Insert in batches of 500
       const batchSize = 500;
       let totalInserted = 0;
+      let totalVolume = 0;
 
       for (let i = 0; i < invoices.length; i += batchSize) {
         const batch = invoices.slice(i, i + batchSize);
-        const { error } = await supabase.from("invoices").insert(batch);
+        const { data, error } = await supabase.from("invoices").insert(batch).select();
         if (error) {
           console.error("Batch insert error:", error);
           throw error;
         }
-        totalInserted += batch.length;
+        totalInserted += data?.length || batch.length;
+        totalVolume += batch.reduce((sum, inv) => sum + (inv.product_volume || 0), 0);
+        console.log(`Batch ${Math.floor(i / batchSize) + 1}: Inserted ${data?.length || batch.length} records`);
+      }
+
+      console.log(`✓ Successfully inserted ${totalInserted} invoices with total volume: ${totalVolume.toFixed(2)}`);
+
+      // Verify what was actually saved
+      const { start: verifyStart, end: verifyEnd } = (() => {
+        const dates = invoices.map(inv => new Date(inv.invoice_date)).filter(d => !isNaN(d.getTime()));
+        if (dates.length === 0) return { start: '', end: '' };
+        const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+        return {
+          start: minDate.toISOString().split('T')[0],
+          end: new Date(maxDate.getTime() + 86400000).toISOString().split('T')[0]
+        };
+      })();
+
+      if (verifyStart && verifyEnd) {
+        const { data: savedInvoices } = await supabase
+          .from("invoices")
+          .select("invoice_date, product_volume")
+          .gte("invoice_date", verifyStart)
+          .lt("invoice_date", verifyEnd);
+
+        if (savedInvoices) {
+          const savedVolume = savedInvoices.reduce((sum, inv) => sum + (inv.product_volume || 0), 0);
+          console.log(`📊 Verification - Saved in DB: ${savedInvoices.length} invoices, ${savedVolume.toFixed(2)} volume`);
+          
+          if (Math.abs(savedVolume - totalVolume) > 1) {
+            console.error(`⚠️ VOLUME MISMATCH: Expected ${totalVolume.toFixed(2)} but found ${savedVolume.toFixed(2)} in database`);
+          }
+        }
       }
 
       toast({
         title: "Success",
-        description: `Imported ${totalInserted} invoice records`,
+        description: `Imported ${totalInserted} invoice records (${totalVolume.toFixed(2)}L total). Check console for details.`,
       });
 
       return totalInserted;
