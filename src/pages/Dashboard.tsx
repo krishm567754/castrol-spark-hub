@@ -171,12 +171,25 @@ const Dashboard = () => {
           setKpiConfigsByKey(byKey);
         }
 
-        const volume = (invoiceData || []).reduce((sum, row: any) => {
+        const allInvoicesVolume = (invoiceData || []).reduce((sum, row: any) => {
           const v = Number(row.product_volume) || 0;
           return sum + v;
         }, 0);
 
-        setTotalVolume(volume);
+        // Separate excluded products volume
+        const excludedInvoices = (invoiceData || []).filter(
+          (r: any) => EXCLUDED_PRODUCTS_LIST.some((s) => getStr(r.product_name).includes(s))
+        );
+        const excludedVolume = excludedInvoices.reduce((sum, row: any) => sum + (Number(row.product_volume) || 0), 0);
+
+        console.log(`📊 Dashboard for ${getMonthLabel(selectedMonthOffset)}:`);
+        console.log(`   Total invoices loaded: ${invoiceData?.length || 0}`);
+        console.log(`   Total volume (all products): ${allInvoicesVolume.toFixed(2)}L`);
+        console.log(`   Excluded products volume: ${excludedVolume.toFixed(2)}L`);
+        console.log(`   Net volume (after exclusions): ${(allInvoicesVolume - excludedVolume).toFixed(2)}L`);
+        console.log(`   Excluded products:`, EXCLUDED_PRODUCTS_LIST);
+
+        setTotalVolume(allInvoicesVolume);
 
         // Build detailed KPI reports based on previous tool logic
         const reportsMap: Record<string, ReportTable> = {};
