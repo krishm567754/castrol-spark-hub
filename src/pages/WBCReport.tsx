@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface WbcAgreement {
   id: string;
@@ -21,6 +22,7 @@ interface WbcAgreementWithAchieved extends WbcAgreement {
 }
 
 const WBCReport = () => {
+  const { isAdmin } = useAuth();
   const [agreements, setAgreements] = useState<WbcAgreementWithAchieved[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -256,9 +258,11 @@ const WBCReport = () => {
             <span>
               Overall achievement: <strong>{overallAchievement.toFixed(1)}%</strong>
             </span>
-            <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
-              Add Agreement
-            </Button>
+            {isAdmin && (
+              <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
+                Add Agreement
+              </Button>
+            )}
           </div>
         </div>
 
@@ -329,13 +333,15 @@ const WBCReport = () => {
                             >
                               View Products
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteAgreement(a.id)}
-                            >
-                              Delete
-                            </Button>
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteAgreement(a.id)}
+                              >
+                                Delete
+                              </Button>
+                            )}
                           </td>
                         </tr>
                       );
