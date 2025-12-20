@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, Loader2, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useExcelUpload } from "@/hooks/useExcelUpload";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -138,6 +139,13 @@ const AdminData = () => {
           <h1 className="text-2xl sm:text-3xl font-bold">Admin Data Management</h1>
           <p className="text-muted-foreground mt-1">Upload and manage Excel data sources</p>
         </div>
+
+        <Alert className="border-primary/30 bg-primary/5">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-sm">
+            After uploading, check your browser console (F12) for detailed verification logs showing row counts, volume totals, and any data mismatches.
+          </AlertDescription>
+        </Alert>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {dataCards.map((card, index) => (
