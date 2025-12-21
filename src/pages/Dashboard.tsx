@@ -199,16 +199,16 @@ const Dashboard = () => {
         );
         setRawInvoices(kpiInvoices);
 
-        // Volume by Sales Exec
+        // Volume by Sales Exec - use ALL invoices (no product exclusions)
         const volBySeMap: Record<string, number> = {};
-        kpiInvoices.forEach((r: any) => {
+        invoices.forEach((r: any) => {
           const se = getStr(r.sales_exec_name || "Unknown");
           volBySeMap[se] = (volBySeMap[se] || 0) + getNum(r.product_volume);
         });
         reportsMap["volumeBySE"] = {
           headers: ["Sales Executive Name", "Total Volume (Ltr)"],
           rows: Object.entries(volBySeMap)
-            .map(([name, vol]) => [name, Number(vol.toFixed(2))])
+            .map(([name, vol]) => [name, Number((vol as number).toFixed(2))])
             .sort((a, b) => (b[1] as number) - (a[1] as number)),
         };
 
