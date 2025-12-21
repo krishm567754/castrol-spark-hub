@@ -182,14 +182,16 @@ const Dashboard = () => {
         );
         const excludedVolume = excludedInvoices.reduce((sum, row: any) => sum + (Number(row.product_volume) || 0), 0);
 
+        const netCoreVolume = allInvoicesVolume - excludedVolume;
+
         console.log(`📊 Dashboard for ${getMonthLabel(selectedMonthOffset)}:`);
         console.log(`   Total invoices loaded: ${invoiceData?.length || 0}`);
         console.log(`   Total volume (all products): ${allInvoicesVolume.toFixed(2)}L`);
         console.log(`   Excluded products volume: ${excludedVolume.toFixed(2)}L`);
-        console.log(`   Net volume (after exclusions): ${(allInvoicesVolume - excludedVolume).toFixed(2)}L`);
-        console.log(`   Excluded products:`, EXCLUDED_PRODUCTS_LIST);
+        console.log(`   Net core volume (after exclusions): ${netCoreVolume.toFixed(2)}L`);
+        console.log(`   Excluded products list:`, EXCLUDED_PRODUCTS_LIST);
 
-        setTotalVolume(allInvoicesVolume);
+        setTotalVolume(netCoreVolume);
 
         // Build detailed KPI reports based on previous tool logic
         const reportsMap: Record<string, ReportTable> = {};
@@ -199,9 +201,9 @@ const Dashboard = () => {
         );
         setRawInvoices(kpiInvoices);
 
-        // Volume by Sales Exec - use ALL invoices (no product exclusions)
+        // Volume by Sales Exec (core volume only, after exclusions)
         const volBySeMap: Record<string, number> = {};
-        invoices.forEach((r: any) => {
+        kpiInvoices.forEach((r: any) => {
           const se = getStr(r.sales_exec_name || "Unknown");
           volBySeMap[se] = (volBySeMap[se] || 0) + getNum(r.product_volume);
         });
