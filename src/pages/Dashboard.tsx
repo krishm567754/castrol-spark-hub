@@ -32,7 +32,6 @@ const POWER1_PRODUCTS_LIST = [
 ];
 
 const ACTIV_BRANDS_INCLUDE = ["ACTIV"];
-const ACTIV_BRANDS_EXCLUDE = ["ACTIV ESSENTIAL"];
 
 const MAGNATEC_BRANDS_INCLUDE = ["MAGNATEC", "MAGNTEC SUV", "MAGNATEC DIESEL"];
 
@@ -50,7 +49,6 @@ const isActiv = (brand: string) => {
   const b = getStr(brand).toUpperCase();
   if (!b) return false;
   if (!ACTIV_BRANDS_INCLUDE.some((s) => b.includes(s))) return false;
-  if (ACTIV_BRANDS_EXCLUDE.some((s) => b.includes(s))) return false;
   return true;
 };
 
@@ -69,10 +67,10 @@ const isAutocare = (brand: string) => {
   return AUTOCARE_BRANDS_INCLUDE.some((s) => b.includes(s));
 };
 
-const isCoreProduct = (brand: string, productName: string) => {
-  const b = getStr(brand);
+// Core products are defined ONLY by excluding the explicit product-name list
+// (no extra brand-based exclusions).
+const isCoreProduct = (_brand: string, productName: string) => {
   const p = getStr(productName);
-  if (isAutocare(b)) return false;
   return !EXCLUDED_PRODUCTS_LIST.some((s) => p.includes(s));
 };
 
