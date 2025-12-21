@@ -174,11 +174,20 @@ const Dashboard = () => {
           return sum + v;
         }, 0);
 
-        // Separate excluded products volume
-        const excludedInvoices = (invoiceData || []).filter(
-          (r: any) => EXCLUDED_PRODUCTS_LIST.some((s) => getStr(r.product_name).includes(s))
+        // Separate excluded products volume (accessories + autocare brands)
+        const excludedInvoices = (invoiceData || []).filter((r: any) => {
+          const name = getStr(r.product_name);
+          const brand = getStr(r.product_brand_name);
+          const isExcludedByName = EXCLUDED_PRODUCTS_LIST.some((s) => name.includes(s));
+          const isExcludedAutocareBrand = AUTOCARE_BRANDS_INCLUDE.some((s) =>
+            brand.toUpperCase().includes(s)
+          );
+          return isExcludedByName || isExcludedAutocareBrand;
+        });
+        const excludedVolume = excludedInvoices.reduce(
+          (sum, row: any) => sum + (Number(row.product_volume) || 0),
+          0
         );
-        const excludedVolume = excludedInvoices.reduce((sum, row: any) => sum + (Number(row.product_volume) || 0), 0);
 
         const netCoreVolume = allInvoicesVolume - excludedVolume;
 
@@ -194,9 +203,15 @@ const Dashboard = () => {
         // Build detailed KPI reports based on previous tool logic
         const reportsMap: Record<string, ReportTable> = {};
         const invoices = invoiceData || [];
-        const kpiInvoices = invoices.filter(
-          (r: any) => !EXCLUDED_PRODUCTS_LIST.some((s) => getStr(r.product_name).includes(s))
-        );
+        const kpiInvoices = invoices.filter((r: any) => {
+          const name = getStr(r.product_name);
+          const brand = getStr(r.product_brand_name);
+          const isExcludedByName = EXCLUDED_PRODUCTS_LIST.some((s) => name.includes(s));
+          const isExcludedAutocareBrand = AUTOCARE_BRANDS_INCLUDE.some((s) =>
+            brand.toUpperCase().includes(s)
+          );
+          return !(isExcludedByName || isExcludedAutocareBrand);
+        });
         setRawInvoices(kpiInvoices);
 
         // Volume by Sales Exec (core volume only, after exclusions)
