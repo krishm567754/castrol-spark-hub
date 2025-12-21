@@ -729,17 +729,21 @@ const Dashboard = () => {
                               `${getStr(r.sales_exec_name)}|${getStr(r.customer_name)}`;
 
                             switch (selectedReport) {
-                              case "volumeBySE":
+                              case "volumeBySE": {
+                                const customerVol: Record<string, number> = {};
                                 rawInvoices.forEach((r: any) => {
-                                  if (getStr(r.sales_exec_name) === se) {
-                                    pushItem(
-                                      getStr(r.customer_name),
-                                      getNum(r.product_volume)
-                                    );
-                                  }
+                                  if (getStr(r.sales_exec_name) !== se) return;
+                                  const label = getStr(r.customer_name);
+                                  if (!label) return;
+                                  customerVol[label] =
+                                    (customerVol[label] || 0) + getNum(r.product_volume);
                                 });
-                                setDrilldownTitle(`Customers for ${se}`);
+                                Object.entries(customerVol).forEach(([label, vol]) => {
+                                  pushItem(label, vol);
+                                });
+                                setDrilldownTitle(`Customers (Dec total) for ${se}`);
                                 break;
+                              }
                               case "activCount":
                                 rawInvoices
                                   .filter((r: any) => isActiv(r.product_brand_name))
