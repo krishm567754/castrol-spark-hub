@@ -148,7 +148,7 @@ const Dashboard = () => {
           invoiceQuery = invoiceQuery.in("sales_exec_name", allowedSalesExecNames);
         }
 
-        const { data: invoiceData, error: invoicesError } = await invoiceQuery.range(0, 9999);
+        const { data: invoiceData, error: invoicesError } = await invoiceQuery.range(0, 99999);
         if (invoicesError) throw invoicesError;
 
         const { data: kpiConfigs, error: kpiConfigsError } = await supabase
